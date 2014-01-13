@@ -22,6 +22,9 @@
 
 define('ISINCLUDED', 1);
 
+if(!file_exists("config.php"))
+	die("Please create config.php");
+
 require("config.php");
 
 if(strtolower(@$_SERVER['HTTPS']) == "on")
@@ -669,829 +672,942 @@ class db
 }
 
 class bin
+{
+	public function __construct($db)
 	{
-		public function __construct($db)
-			{
-				$this->db = $db;
-			}
+		$this->db = $db;
+	}
 		
-		public function setTitle($config)
-			{
-				if(!$config)
-					$title = "Pastebin on " . $_SERVER['SERVER_NAME'];
-				else
-					$title = htmlspecialchars($config, ENT_COMPAT, 'UTF-8', FALSE);
+	public function setTitle($config)
+	{
+		if(!$config)
+			$title = "Pastebin on " . $_SERVER['SERVER_NAME'];
+		else
+			$title = htmlspecialchars($config, ENT_COMPAT, 'UTF-8', FALSE);
 
-				return $title;
-			}
+		return $title;
+	}
 
-		public function setTagline($config)
-			{
-				if(!$config)
-					$output = "<!-- TAGLINE OMITTED -->";
-				else
-					$output = "<div id=\"tagline\">" . $config . "</div>";
+	public function setTagline($config)
+	{
+		if(!$config)
+			$output = "<!-- TAGLINE OMITTED -->";
+		else
+			$output = "<div id=\"tagline\">" . $config . "</div>";
 
-				return $output;
-			}
+		return $output;
+	}
 
-		public function titleID($requri = FALSE)
-			{
-				if(!$requri)
-					$id = "Welcome!";
-				else
-					$id = $requri;
+	public function titleID($requri = FALSE)
+	{
+		if(!$requri)
+			$id = "Welcome!";
+		else
+			$id = $requri;
 
-				return $id;
-			}
+		return $id;
+	}
 
-		public function robotPrivacy($requri = FALSE)
-			{
-				if(!$requri)
-					return "index,follow";
+	public function robotPrivacy($requri = FALSE)
+	{
+		if(!$requri)
+			return "index,follow";
 
-				$requri = str_replace("!", "", $requri);
-				
-				if($privacy = $this->db->readPaste($requri))
-					{
-						
-						if($this->db->dbt == "mysql")
-							$privacy = $privacy[0];
-
-						switch((int)$privacy['Protection'])
-							{
-								case 0:
-									if($privacy['URL'] != "")
-										$robot = "index,nofollow";
-									else
-										$robot = "index,follow";
-
-									if($privacy['Encrypted'] != NULL)
-											$robot = "noindex,nofollow";
-
-								break;
-								case 1:
-									if($privacy['URL'] != "")
-										$robot = "noindex,nofollow";
-									else
-										$robot = "noindex,follow";
-								break;
-								default:
-									$robot = "index,follow";
-								break;
-							}
-					}
-
-				return $robot;
-			}
+		$requri = str_replace("!", "", $requri);
 		
-		public function thisDir()
+		if($privacy = $this->db->readPaste($requri))
+		{
+			if($this->db->dbt == "mysql")
+				$privacy = $privacy[0];
+
+			switch((int)$privacy['Protection'])
 			{
-				$output = dirname($_SERVER['SCRIPT_FILENAME']);
-				return $output;
+				case 0:
+					if($privacy['URL'] != "")
+						$robot = "index,nofollow";
+					else
+						$robot = "index,follow";
+
+					if($privacy['Encrypted'] != NULL)
+							$robot = "noindex,nofollow";
+
+				break;
+				case 1:
+					if($privacy['URL'] != "")
+						$robot = "noindex,nofollow";
+					else
+						$robot = "noindex,follow";
+				break;
+				default:
+					$robot = "index,follow";
+				break;
 			}
+		}
+
+		return $robot;
+	}
 		
-		public function generateID($id = FALSE, $iterations = 0)
-			{
-				$checkArray = array('install', 'api', 'defaults', 'recent', 'raw', 'moo', 'pastes', 'subdomain', 'forbidden');
+	public function thisDir()
+	{
+		$output = dirname($_SERVER['SCRIPT_FILENAME']);
 
-				if($iterations > 0 && $iterations < 4 && $id != FALSE)
-					$id = $this->generateRandomString($this->db->getLastID());
-				elseif($iterations > 3 && $id != FALSE)
-					$id = $this->generateRandomString($this->db->getLastID() + 1);
+		return $output;
+	}
+		
+	public function generateID($id = FALSE, $iterations = 0)
+	{
+		$checkArray = array('install', 'api', 'defaults', 'recent', 'raw', 
+			'moo', 'download', 'pastes', 'subdomain', 'forbidden');
+
+		if($iterations > 0 && $iterations < 4 && $id != FALSE)
+			$id = $this->generateRandomString($this->db->getLastID());
+		elseif($iterations > 3 && $id != FALSE)
+			$id = $this->generateRandomString($this->db->getLastID() + 1);
+		else
+			$id = $id;
+
+		if(!$id)
+			$id = $this->generateRandomString($this->db->getLastID());
+
+		if($id == $this->db->config['txt_config']['db_index'] 
+			|| in_array($id, $checkArray))
+			$id = $this->generateRandomString($this->db->getLastID());
+
+		if($this->db->config['pb_rewrite'] && (is_dir($id) 
+			|| file_exists($id)))
+			$id = $this->generateID($id, $iterations + 1);	
+
+		if(!$this->db->checkID($id) && !in_array($id, $checkArray))
+			return $id;
+		else
+			return $this->generateID($id, $iterations + 1);			
+	}
+
+	public function checkAuthor($author = FALSE)
+	{
+		if($author == FALSE)
+			return $this->db->config['pb_author'];
+
+		if(preg_match('/^\s/', $author) || preg_match('/\s$/', $author) 
+			|| preg_match('/^\s$/', $author))
+			return $this->db->config['pb_author'];
+		else
+			return addslashes($this->db->lessHTML($author));
+	}
+
+	public function checkSubdomain($subdomain)
+	{
+		if($subdomain == FALSE)
+			return FALSE;
+
+		if(preg_match('/^\s/', $subdomain) || preg_match('/\s$/', $subdomain) 
+			|| preg_match('/^\s$/', $subdomain))
+			return FALSE;
+		elseif(ctype_alnum($subdomain))
+			return $subdomain;
+		else
+			return preg_replace("/[^A-Za-z0-9]/i", "", $subdomain);
+	}
+
+
+	public function getLastPosts($amount, $user = NULL)
+	{
+		switch($this->db->dbt)
+		{
+			case "mysql":
+				$this->db->connect();
+				$result = array();
+				if($this->db->config['subdomain'])
+					$whereSubdomain = " AND Subdomain='" 
+						. $this->db->config['subdomain']  . "'";
 				else
-					$id = $id;
+					$whereSubdomain = " AND Subdomain=''";
 
-				if(!$id)
-					$id = $this->generateRandomString($this->db->getLastID());
-
-				if($id == $this->db->config['txt_config']['db_index'] || in_array($id, $checkArray))
-					$id = $this->generateRandomString($this->db->getLastID());
-
-				if($this->db->config['pb_rewrite'] && (is_dir($id) || file_exists($id)))
-					$id = $this->generateID($id, $iterations + 1);	
-
-				if(!$this->db->checkID($id) && !in_array($id, $checkArray))
-					return $id;
+				if($user)
+					$whereUser = " AND Author='" . $user . "'";
 				else
-					return $this->generateID($id, $iterations + 1);			
-			}
+					$whereUser = NULL;
 
-		public function checkAuthor($author = FALSE)
-			{
-				if($author == FALSE)
-					return $this->db->config['pb_author'];
+				$query = "SELECT * FROM " 
+					. $this->db->config['mysql_connection_config']['db_table'] 
+					. " WHERE Protection < 1" . $whereSubdomain . $whereUser 
+					. " ORDER BY Datetime DESC LIMIT " . $amount;
 
-				if(preg_match('/^\s/', $author) || preg_match('/\s$/', $author) || preg_match('/^\s$/', $author))
-					return $this->db->config['pb_author'];
-				else
-					return addslashes($this->db->lessHTML($author));
-			}
+				$result_temp = mysql_query($query);
 
-		public function checkSubdomain($subdomain)
-			{
-				if($subdomain == FALSE)
-					return FALSE;
-
-				if(preg_match('/^\s/', $subdomain) || preg_match('/\s$/', $subdomain) || preg_match('/^\s$/', $subdomain))
-					return FALSE;
-				elseif(ctype_alnum($subdomain))
-					return $subdomain;
-				else
-					return preg_replace("/[^A-Za-z0-9]/i", "", $subdomain);
-			}
-
-
-		public function getLastPosts($amount, $user = NULL)
-			{
-				switch($this->db->dbt)
-					{
-						case "mysql":
-							$this->db->connect();
-							$result = array();
-							if($this->db->config['subdomain'])
-								$whereSubdomain = " AND Subdomain='" . $this->db->config['subdomain']  . "'";
-							else
-								$whereSubdomain = " AND Subdomain=''";
-
-							if($user)
-								$whereUser = " AND Author='" . $user . "'";
-							else
-								$whereUser = NULL;
-
-							$query = "SELECT * FROM " . $this->db->config['mysql_connection_config']['db_table'] . " WHERE Protection < 1" . $whereSubdomain . $whereUser . " ORDER BY Datetime DESC LIMIT " . $amount;
-
-							$result_temp = mysql_query($query);
-							if(!$result_temp || mysql_num_rows($result_temp) < 1)
-								return NULL;
+				if(!$result_temp || mysql_num_rows($result_temp) < 1)
+					return NULL;
 							
-							while ($row = mysql_fetch_assoc($result_temp))
-								 $result[] = $row;
-
-							mysql_free_result($result_temp);
-						break;
-						case "txt":
-							$index = $this->db->deserializer($this->db->read($this->db->setDataPath() . "/" . $this->db->config['txt_config']['db_index']));
-							$index = array_reverse($index);
-							$int = 0;
-							$result = array();
-							if(count($index) > 0)
-								{ foreach($index as $row)
-									{ if($int < $amount && substr($row, 0, 1) != "!") { $result[$int] = $this->db->readPaste($row); $int++; } elseif($int <= $amount && substr($row, 0, 1) == "!") { $int = $int; } else { return $result; } } }
-						break;
-					}
-				return $result;
-			}
-
-		public function styleSheet()
-			{
-				if($this->db->config['pb_style'] == FALSE)
-					return false;
-
-				if(preg_match("/^(http|https|ftp):\/\/(.*?)/", $this->db->config['pb_style']))
-					{
-						$headers = @get_headers($this->db->config['pb_style']);
-						if (preg_match("|200|", $headers[0]))
-							return true;
-						else
-							return false;
-					} else
-						{
-							if(file_exists($this->db->config['pb_style']))
-								return true;
-							else
-								return false;
-						}
-				
-
-			}
-
-		public function jQuery()
-			{
-				if($this->db->config['pb_jQuery'] == FALSE)
-					return false;
-
-				if(preg_match("/^(http|https|ftp):\/\/(.*?)/", $this->db->config['pb_jQuery']))
-					{
-						$headers = @get_headers($this->db->config['pb_jQuery']);
-						if (preg_match("|200|", $headers[0]))
-							return true;
-						else
-							return false;
-					} else
-						{
-							if(file_exists($this->db->config['pb_jQuery']))
-								return true;
-							else
-								return false;
-						}
-				
-
-			}
-
-		public function highlight()
-			{
-				if($this->db->config['pb_syntax'] == FALSE)
-					return false;
-
-				
-				if(file_exists($this->db->config['pb_syntax']))
-					return true;
-				else
-					return false;
-				
-
-			}
-
-		public function adaptor()
-			{
-				if($this->db->config['pb_api_adaptor'] == FALSE)
-					return false;
-
-				
-				if(file_exists($this->db->config['pb_api_adaptor']))
-					return true;
-				else
-					return false;
-				
-
-			}
-
-		public function highlightPath()
-			{
-				if($this->highlight())
-					return dirname($this->db->config['pb_syntax']) . "/";
-				else
-					return false;
-			}
-
-		public function lineHighlight()
-			{
-				if($this->db->config['pb_line_highlight'] == FALSE || strlen($this->db->config['pb_line_highlight']) < 1)
-					return false;
-
-				if(strlen($this->db->config['pb_line_highlight']) > 6)
-					return substr($this->db->config['pb_line_highlight'], 0, 6);
-
-				if(strlen($this->db->config['pb_line_highlight']) == 1)
-					return $this->db->config['pb_line_highlight'] . $this->db->config['pb_line_highlight'];
-
-				return $this->db->config['pb_line_highlight'];
-
-			}
-
-		public function filterHighlight($line)
-			{
-				if($this->lineHighlight() == FALSE)
-					return $line;
-
-				$len = strlen($this->lineHighlight());
-				
-				if(substr($line, 0, $len) == $this->lineHighlight())
-					$line = "<span class=\"lineHighlight\">" . substr($line, $len) . "</span>";
-
-				return $line;
-				
-			}
-
-		public function noHighlight($data)
-			{
-
-				if($this->lineHighlight() == FALSE)
-					return $data;
-
-				$output = array();
-
-				$lines = explode("\n", $data);
-					foreach($lines as $line)
-						{
-							$len = strlen($this->lineHighlight());
-				
-							if(substr($line, 0, $len) == $this->lineHighlight())
-								$output[] = substr($line, $len);
-							else
-								$output[] = $line;
-						}
-
-				$output = implode("\n", $output);
-
-				return $output;
-				
-			}
-
-		public function highlightNumbers($data)
-			{
-				if($this->lineHighlight() == FALSE)
-					return false;
-
-				$output = array();
-
-				$n = 0;
-
-				$lines = explode("\n", $data);
-					foreach($lines as $line)
-						{
-							$n++;
-
-							$len = strlen($this->lineHighlight());
-				
-							if(substr($line, 0, $len) == $this->lineHighlight())
-								$output[] = $n;
-						}
-
-
-				return $output;
-				
-			}
-
-		public function _clipboard()
-			{
-				if($this->db->config['pb_clipboard'] == FALSE)
-					return false;
-
-				$this->db->config['cbdir'] = dirname($this->db->config['pb_clipboard']);
-				$cbdir = $this->db->config['cbdir'];
-
-				if(strlen($cbdir) < 2)
-					$cbdir = ".";
-
-				if(preg_match("/^(http|https|ftp):\/\/(.*?)/", $this->db->config['pb_clipboard']))
-					{
-						$headers = @get_headers($this->db->config['pb_clipboard']);
-						if (preg_match("|200|", $headers[0])) {
-							$jsHeaders = @get_headers($cbdir . "/swfobject.js");
-							if(preg_match("|200|", $jsHeaders[0]))
-								return true;
-							else
-								return false; }
-						else
-							return false;
-					} else
-						{
-							if(file_exists($this->db->config['pb_clipboard']) && file_exists($cbdir . "/swfobject.js"))
-								return true;
-							else
-								return false;
-						}
-				
-
-			}
-
-		public function flowplayer($javascript = FALSE)
-			{
-				if($this->db->config['pb_flowplayer'] == FALSE)
-					return false;
-					
-				$jsMin = str_ireplace("flowplayer.swf", "flowplayer.min.js", $this->db->config['pb_flowplayer']);
-					
-				if(preg_match("/^(http|https|ftp):\/\/(.*?)/", $this->db->config['pb_flowplayer']))
-					{
-						$headers = @get_headers($this->db->config['pb_flowplayer']);
-						$jsHeaders = @get_headers($jsMin);
-						if (preg_match("|200|", $headers[0]) && preg_match("|200|", $jsHeaders[0]))
-							{
-								if($javascript)
-									return $jsMin;
-								else
-									return $this->db->config['pb_flowplayer'];
-							}
-						else
-							return false;
-					} else
-						{
-							if(file_exists($this->db->config['pb_flowplayer']) && file_exists($jsMin))
-								{
-									if($javascript)
-										return $jsMin;
-									else
-										return $this->db->config['pb_flowplayer'];
-								}
-							else
-								return false;
-						}
-				
-
-			}
-
-		public function generateRandomString($length)
-			{
-				$checkArray = array('install', 'api', 'defaults', 'recent', 'raw', 'moo', 'pastes', 'subdomain', 'forbidden', 0);
-
-				$characters = "0123456789abcdefghijklmnopqrstuvwxyz";  
-				if($this->db->config['pb_hexlike_id'])
-					$characters = "0123456789abcdefabcdef";
-
-				$output = "";
-					for ($p = 0; $p < $length; $p++) {
-						$output .= $characters[mt_rand(0, strlen($characters))];
-					}
-					
-				if(is_bool($output) || $output == NULL || strlen($output) < $length || in_array($output, $checkArray))
-					return $this->generateRandomString($length);
-				else
-    					return (string)$output;
-			}
-
-		public function cleanUp($amount)
-			{
-				if(!$this->db->config['pb_autoclean'])
-					return false;
-
-				if(!file_exists('INSTALL_LOCK'))
-					return false;
-	
-				switch($this->db->dbt)
-					{
-						case "mysql":
-							$this->db->connect();
-							$result = array();
-							$query = "SELECT * FROM " . $this->db->config['mysql_connection_config']['db_table'] . " WHERE Lifespan <= " . time() . " AND Lifespan > 0 ORDER BY Datetime ASC LIMIT " . $amount;
-							$result_temp = mysql_query($query);
-								while ($row = mysql_fetch_assoc($result_temp))
-									 $result[] = $row;
-
-							mysql_free_result($result_temp);
-						break;
-						case "txt":
-							$index = $this->db->deserializer($this->db->read($this->db->setDataPath() . "/" . $this->db->config['txt_config']['db_index']));
-
-							if(is_array($index) && count($index) > $amount + 1)
-								shuffle($index);
-
-							$int = 0;
-							$result = array();
-							if(count($index) > 0)
-								{ foreach($index as $row)
-									{ if($int < $amount) { $result[] = $this->db->readPaste(str_replace("!", NULL, $row)); } else { break; } $int++;	} }
-						break;
-					}
-
-				foreach($result as $paste)
-					{
-						if($paste['Lifespan'] == 0)
-							$paste['Lifespan'] = time() + time();
-
-						if(gmdate('U') > $paste['Lifespan'])
-							$this->db->dropPaste($paste['ID']);
-					}
-
-				return $result;
-			}
-
-		public function linker($id = FALSE)
-			{
-				$dir = dirname($_SERVER['SCRIPT_NAME']);
-				if(strlen($dir) > 1)
-					$now = $this->db->config['pb_protocol'] . "://" . $_SERVER['SERVER_NAME'] . $dir;
-				else
-					$now = $this->db->config['pb_protocol'] . "://" . $_SERVER['SERVER_NAME'];
-
-				$file = basename($_SERVER['SCRIPT_NAME']);
-				
-				switch($this->db->config['pb_rewrite'])
-					{
-						case TRUE:
-							if($id == FALSE)
-								$output = $now . "/";
-							else
-								$output = $now . "/" . $id;
-						break;
-						case FALSE:
-							if($id == FALSE)
-								$output = $now . "/";
-							else
-								$output = $now . "/" . $file . "?" . $id;
-						break;
-					}
-
-				return $output;
-			}
-
-		public function setSubdomain($force = FALSE)
-			{
-				if(!$this->db->config['pb_subdomains'])
-					return NULL;
-
-				if($force)
-					return $this->db->config['txt_config']['db_folder'] = $this->db->config['txt_config']['db_folder'] . "/subdomain/" . $force;
-
-				if(!file_exists('INSTALL_LOCK'))
-					return NULL;
-
-				$domain = strtolower(str_replace("www.", "", $_SERVER['SERVER_NAME']));
-				$explode = explode(".", $domain, 2);
-				$sub = $explode[0];
-
-				switch($this->db->dbt)
-					{
-						case "mysql":
-							$this->db->connect();
-							$subdomain_list = array();
-							$query = "SELECT * FROM " . $this->db->config['mysql_connection_config']['db_table'] . " WHERE ID = 'forbidden' LIMIT 1";
-							$result_temp = mysql_query($query);
-								while($row = mysql_fetch_assoc($result_temp))
-									 $subdomain_list['forbidden'] = unserialize($row['Data']);
-
-							$query = "SELECT * FROM " . $this->db->config['mysql_connection_config']['db_table'] . " WHERE ID = 'subdomain' AND Subdomain = '" . $sub . "'";
-							$result_temp = mysql_query($query);
-							if(mysql_num_rows($result_temp) > 0)
-								$in_list = TRUE;
-							else
-								$in_list = FALSE;
-
-							mysql_free_result($result_temp);
-						break;
-						case "txt":
-							$subdomainsFile = $this->db->config['txt_config']['db_folder'] . "/" . $this->db->config['txt_config']['db_index'] . "_SUBDOMAINS";
-							$subdomain_list = $this->db->deserializer($this->db->read($subdomainsFile));
-							$in_list = in_array($sub, $subdomain_list);
-						break;
-					}
-
-				if(!in_array($sub, $subdomain_list['forbidden']) && $in_list)
-					{
-						$this->db->config['txt_config']['db_folder'] = $this->db->config['txt_config']['db_folder'] . "/subdomain/" . $sub;
-						return $sub;
-					}
-				else
-					return NULL;				
-			}
-
-		public function makeSubdomain($subdomain)
-			{
-				if(!file_exists('INSTALL_LOCK'))
-					return NULL;
-
-				if(!$this->db->config['pb_subdomains'])
-					return FALSE;
-
-				$subdomain = $this->checkSubdomain(strtolower($subdomain));
-
-				switch($this->db->dbt)
-					{
-						case "mysql":
-							$this->db->connect();
-							$subdomain_list = array();
-							$query = "SELECT * FROM " . $this->db->config['mysql_connection_config']['db_table'] . " WHERE ID = 'forbidden' LIMIT 1";
-							$result_temp = mysql_query($query);
-								while($row = mysql_fetch_assoc($result_temp))
-									 $subdomain_list['forbidden'] = unserialize($row['Data']);
-
-							$query = "SELECT * FROM " . $this->db->config['mysql_connection_config']['db_table'] . " WHERE ID = 'subdomain' AND Subdomain = '" . $subdomain . "'";
-							$result_temp = mysql_query($query);
-							if(mysql_num_rows($result_temp) > 0)
-								$in_list = TRUE;
-							else
-								$in_list = FALSE;
-
-							mysql_free_result($result_temp);
-						break;
-						case "txt":
-							$subdomainsFile = $this->db->config['txt_config']['db_folder'] . "/" . $this->db->config['txt_config']['db_index'] . "_SUBDOMAINS";
-							$subdomain_list = $this->db->deserializer($this->db->read($subdomainsFile));
-							$in_list = in_array($subdomain, $subdomain_list);
-						break;
-					}
-
-				if(!in_array($subdomain, $subdomain_list['forbidden']) && !$in_list)
-					{
-						switch($this->db->dbt)
-							{
-								case "mysql":
-									$domain = array('ID' => "subdomain", 'Subdomain' => $subdomain, 'Image' => 1, 'Author' => "System", 'Protect' => 1, 'Lifespan' => 0, 'Content' => "Subdomain marker");
-									$this->db->insertPaste($domain['ID'], $domain, TRUE);
-									mkdir($this->db->config['txt_config']['db_folder'] . "/subdomain/" . $subdomain);
-									chmod($this->db->config['txt_config']['db_folder'] . "/subdomain/" . $subdomain, $this->db->config['txt_config']['dir_mode']);
-									mkdir($this->db->config['txt_config']['db_folder'] . "/subdomain/" . $subdomain . "/" . $this->db->config['txt_config']['db_images']);
-									chmod($this->db->config['txt_config']['db_folder'] . "/subdomain/" . $subdomain . "/" . $this->db->config['txt_config']['db_images'], $this->db->config['txt_config']['dir_mode']);
-									$this->db->write("FORBIDDEN", $this->db->config['txt_config']['db_folder'] . "/subdomain/" . $subdomain . "/index.html");
-									chmod($this->db->config['txt_config']['db_folder'] . "/subdomain/" . $subdomain . "/index.html", $this->db->config['txt_config']['dir_mode']);
-									$this->db->write("FORIDDEN", $this->db->config['txt_config']['db_folder'] . "/subdomain/" . $subdomain . "/" . $this->db->config['txt_config']['db_images'] . "/index.html");
-									chmod($this->db->config['txt_config']['db_folder'] . "/subdomain/" . $subdomain . "/" . $this->db->config['txt_config']['db_images'] . "/index.html", $this->db->config['txt_config']['file_mode']);
-									return $subdomain;
-								break;
-								case "txt":
-									$subdomain_list[] = $subdomain;
-									$subdomain_list = $this->db->serializer($subdomain_list);
-									$this->db->write($subdomain_list, $subdomainsFile);
-									$subdomain = $subdomain;
-									mkdir($this->db->config['txt_config']['db_folder'] . "/subdomain/" . $subdomain);
-									chmod($this->db->config['txt_config']['db_folder'] . "/subdomain/" . $subdomain, $this->db->config['txt_config']['dir_mode']);
-									mkdir($this->db->config['txt_config']['db_folder'] . "/subdomain/" . $subdomain . "/" . $this->db->config['txt_config']['db_images']);
-									chmod($this->db->config['txt_config']['db_folder'] . "/subdomain/" . $subdomain . "/" . $this->db->config['txt_config']['db_images'], $this->db->config['txt_config']['dir_mode']);
-									$this->db->write("FORBIDDEN", $this->db->config['txt_config']['db_folder'] . "/subdomain/" . $subdomain . "/index.html");
-									chmod($this->db->config['txt_config']['db_folder'] . "/subdomain/" . $subdomain . "/index.html", $this->db->config['txt_config']['dir_mode']);
-									$this->db->write($this->db->serializer(array()), $this->db->config['txt_config']['db_folder'] . "/subdomain/" . $subdomain . "/" . $this->db->config['txt_config']['db_index']);
-									chmod($this->db->config['txt_config']['db_folder'] . "/subdomain/" . $subdomain . "/" . $this->db->config['txt_config']['db_index'], $this->db->config['txt_config']['file_mode']);
-									$this->db->write("FORIDDEN", $this->db->config['txt_config']['db_folder'] . "/subdomain/" . $subdomain . "/" . $this->db->config['txt_config']['db_images'] . "/index.html");
-									chmod($this->db->config['txt_config']['db_folder'] . "/subdomain/" . $subdomain . "/" . $this->db->config['txt_config']['db_images'] . "/index.html", $this->db->config['txt_config']['file_mode']);
-									return $subdomain;
-								break;
-							}
-					}
-				else
-					return FALSE;				
-			}
-
-		public function generateForbiddenSubdomains($mysql = FALSE)
-			{
-				$domain = str_replace("www.", "", $_SERVER['SERVER_NAME']);
-				$explode = explode(".", $domain, 2);
-				$domain = $explode[0];
-				$output = array(
-					'forbidden' => array("www", $domain, "admin", "owner", "api")
-				);
-
-				if($mysql)
-					$output = array("www", $domain, "admin", "owner", "api");
-
-				return $output;
-			}
-
-		public function hasher($string, $salts = NULL)
-			{
-				if(!is_array($salts))
-					$salts = NULL;
-
-				if(count($salts) < 2)
-					$salts = NULL;
-
-				if(!$this->db->config['pb_algo'])
-					$this->db->config['pb_algo'] = "md5";
-
-				$hashedSalt = NULL;
-
-				if($salts)
-					{
-						$hashedSalt = array(NULL, NULL);
-						
-						for($i = 0; $i < strlen(max($salts)) ; $i++)
-							{
-								$hashedSalt[0] .= $salts[1][$i] . $salts[3][$i];
-								$hashedSalt[1] .= $salts[2][$i] . $salts[4][$i];
-							}
-
-						$hashedSalt[0] = hash($this->db->config['pb_algo'], $hashedSalt[0]);
-						$hashedSalt[1] = hash($this->db->config['pb_algo'], $hashedSalt[1]);
-					}
-
-				if(is_array($hashedSalt))
-					$output = hash($this->db->config['pb_algo'], $hashedSalt[0] . $string . $hashedSalt[1]);
-				else
-					$output = hash($this->db->config['pb_algo'], $string);
-
-				return $output;
-
-			}
-
-		public function encrypt($string, $key)
-			{
-				$mc_iv = mcrypt_create_iv(32, MCRYPT_RAND);
-
-				$key = md5($this->hasher($key, $this->db->config['pb_salts']));
-				return base64_encode(trim(mcrypt_encrypt(MCRYPT_RIJNDAEL_256, $key, base64_encode($string), MCRYPT_MODE_ECB, $mc_iv)));		
-			}
-
-		public function decrypt($cryptstring, $key)
-			{
-				$mc_iv = mcrypt_create_iv(32, MCRYPT_RAND);
-				$cryptstring = base64_decode($cryptstring);
-
-				$key = md5($this->hasher($key, $this->db->config['pb_salts']));
-				return base64_decode(trim(mcrypt_decrypt(MCRYPT_RIJNDAEL_256, $key, $cryptstring, MCRYPT_MODE_ECB, $mc_iv)));	
-			}
-
-		public function testDecrypt($checkstring, $key)
-			{
-				if($this->db->config['pb_encryption_checkphrase'] == $this->decrypt($checkstring, $key))
-					return TRUE;
-				else 
-					return FALSE;
-			}
-
-		public function event($time, $single = FALSE)
-			{
-				$context = array(
-        					array(60 * 60 * 24 * 365 , "years"),
-        					array(60 * 60 * 24 * 7, "weeks"),
-        					array(60 * 60 * 24 , "days"),
-   		    				array(60 * 60 , "hours"),
-        					array(60 , "minutes"),
-						array(1 , "seconds"),
-   			 		);
-    
-    					$now = gmdate('U');
-   						$difference = $now - $time;
-	
-    
-    					for ($i = 0, $n = count($context); $i < $n; $i++) {
-        
-        						$seconds = $context[$i][0];
-        						$name = $context[$i][1];
-        
-        						if (($count = floor($difference / $seconds)) > 0) {
-            				   			break;
-        							}
-    						}
-    
-    				$print = ($count == 1) ? '1 ' . substr($name, 0, -1) : $count . " " . $name;
-				
-				if($single)
-					return $print;
-    
-   		 				if ($i + 1 < $n) {
-  			      				$seconds2 = $context[$i + 1][0];
-    		  					$name2 = $context[$i + 1][1];
-        
-    		   					if (($count2 = floor(($difference - ($seconds * $count)) / $seconds2)) > 0) {
-										$print .= ($count2 == 1) ? ' 1 ' . substr($name2, 0, -1) : " " . $count2 . " " . $name2;
-    		    			}
-    				}
-	
-   				return $print;
-			}
-
-		public function checkIfRedir($reqURI)
-			{
-				if(strlen($reqURI) < 1)
-					return false;
-
-				$pasteData = $this->db->readPaste($reqURI);
-				if($this->db->dbt == "mysql")
-					$pasteData = $pasteData[0];
-
-				if(strstr($pasteData['URL'], $this->linker()))
-					$pasteData['URL'] = $pasteData['URL'] . "!";
-
-				if($pasteData['Lifespan'] == 0)
-					$pasteData['Lifespan'] = time() + time();
-
-				if(gmdate('U') > $pasteData['Lifespan'])
-					return false;
-
-				if($pasteData['URL'] != NULL && $this->db->config['pb_url'])
-					return $pasteData['URL'];
-				else
-					return false;
-			}
-
-		public function humanReadableFilesize($size) {
- 			// Snippet from: http://www.jonasjohn.de/snippets/php/readable-filesize.htm
- 			$mod = 1024;
- 
-    			$units = explode(' ', 'b Kb Mb Gb Tb Pb');
-    			for ($i = 0; $size > $mod; $i++) {
-        			$size /= $mod;
-    			}
- 
-    			return round($size, 2) . ' ' . $units[$i];
-		}
-
-		public function stristr_array( $haystack, $needle ) {
-			if ( !is_array( $needle ) ) {
-				return false;
-			}
-			foreach ( $needle as $element ) {
-				if ( stristr( $haystack, $element ) ) {
-					return $element;
+				while ($row = mysql_fetch_assoc($result_temp))
+					 $result[] = $row;
+
+				mysql_free_result($result_temp);
+			break;
+			case "txt":
+				$index = $this->db->deserializer($this->db->read(
+					$this->db->setDataPath() . "/" 
+					. $this->db->config['txt_config']['db_index']));
+				$index = array_reverse($index);
+				$int = 0;
+				$result = array();
+
+				if(count($index) > 0)
+				{ 
+					foreach($index as $row)
+					{ 
+						if($int < $amount && substr($row, 0, 1) != "!") 
+						{ 
+							$result[$int] = $this->db->readPaste($row); 
+							$int++; 
+						} elseif($int <= $amount && substr($row, 0, 1) == "!") 
+						{ 
+							$int = $int; 
+						} else { 
+							return $result; 
+						} 
+					} 
 				}
-			}
+			break;
+		}
+		return $result;
+	}
+
+	public function styleSheet()
+	{
+		if($this->db->config['pb_style'] == FALSE)
 			return false;
+
+		if(preg_match("/^(http|https|ftp):\/\/(.*?)/", 
+			$this->db->config['pb_style']))
+		{
+			$headers = @get_headers($this->db->config['pb_style']);
+
+			if (preg_match("|200|", $headers[0]))
+				return true;
+			else
+				return false;
+		} else {
+			if(file_exists($this->db->config['pb_style']))
+				return true;
+			else
+				return false;
+		}
+	}
+
+	public function jQuery()
+	{
+		if($this->db->config['pb_jQuery'] == FALSE)
+			return false;
+
+		if(preg_match("/^(http|https|ftp):\/\/(.*?)/", 
+			$this->db->config['pb_jQuery']))
+		{
+			$headers = @get_headers($this->db->config['pb_jQuery']);
+
+			if (preg_match("|200|", $headers[0]))
+				return true;
+			else
+				return false;
+		} else {
+			if(file_exists($this->db->config['pb_jQuery']))
+				return true;
+			else
+				return false;
+		}
+	}
+
+	public function highlight()
+	{
+		if($this->db->config['pb_syntax'] == FALSE)
+			return false;
+
+		if(file_exists($this->db->config['pb_syntax']))
+			return true;
+		else
+			return false;
+	}
+
+	public function adaptor()
+	{
+		if($this->db->config['pb_api_adaptor'] == FALSE)
+			return false;
+
+		if(file_exists($this->db->config['pb_api_adaptor']))
+			return true;
+		else
+			return false;
+	}
+
+	public function highlightPath()
+	{
+		if($this->highlight())
+			return dirname($this->db->config['pb_syntax']) . "/";
+		else
+			return false;
+	}
+
+	public function lineHighlight()
+	{
+		if($this->db->config['pb_line_highlight'] == FALSE 
+			|| strlen($this->db->config['pb_line_highlight']) < 1)
+			return false;
+
+		if(strlen($this->db->config['pb_line_highlight']) > 6)
+			return substr($this->db->config['pb_line_highlight'], 0, 6);
+
+		if(strlen($this->db->config['pb_line_highlight']) == 1)
+			return $this->db->config['pb_line_highlight'] 
+				. $this->db->config['pb_line_highlight'];
+
+		return $this->db->config['pb_line_highlight'];
+	}
+
+	public function filterHighlight($line)
+	{
+		if($this->lineHighlight() == FALSE)
+			return $line;
+
+		$len = strlen($this->lineHighlight());
+				
+		if(substr($line, 0, $len) == $this->lineHighlight())
+			$line = "<span class=\"lineHighlight\">" . substr($line, $len) 
+				. "</span>";
+
+		return $line;
+	}
+
+	public function noHighlight($data)
+	{
+		if($this->lineHighlight() == FALSE)
+			return $data;
+
+		$output = array();
+
+		$lines = explode("\n", $data);
+
+		foreach($lines as $line)
+		{
+			$len = strlen($this->lineHighlight());
+			
+			if(substr($line, 0, $len) == $this->lineHighlight())
+				$output[] = substr($line, $len);
+			else
+				$output[] = $line;
 		}
 
-		public function token($generate = FALSE)
+		$output = implode("\n", $output);
+
+		return $output;
+	}
+
+	public function highlightNumbers($data)
+	{
+		if($this->lineHighlight() == FALSE)
+			return false;
+
+		$output = array();
+
+		$n = 0;
+
+		$lines = explode("\n", $data);
+
+		foreach($lines as $line)
+		{
+			$n++;
+			$len = strlen($this->lineHighlight());
+				
+			if(substr($line, 0, $len) == $this->lineHighlight())
+				$output[] = $n;
+		}
+
+
+		return $output;
+				
+	}
+
+	public function _clipboard()
+	{
+		if($this->db->config['pb_clipboard'] == FALSE)
+			return false;
+
+		$this->db->config['cbdir'] = dirname(
+			$this->db->config['pb_clipboard']);
+		$cbdir = $this->db->config['cbdir'];
+
+		if(strlen($cbdir) < 2)
+			$cbdir = ".";
+
+		if(preg_match("/^(http|https|ftp):\/\/(.*?)/", 
+			$this->db->config['pb_clipboard']))
+		{
+			$headers = @get_headers($this->db->config['pb_clipboard']);
+			if (preg_match("|200|", $headers[0])) 
 			{
-				if($generate == TRUE)
-					{
-						$output = strtoupper(sha1(md5((int)date("G") . $_SERVER['REMOTE_ADDR'] . $this->db->config['pb_pass'] . $_SERVER['SERVER_ADDR']. $_SERVER['HTTP_USER_AGENT'] . $_SERVER['SCRIPT_FILENAME'])));
-						return $output;
-					}
-
-				$time = array(
-				((int)date("G") - 1), 
-				((int)date("G")), 
-				((int)date("G") + 1));
-
-				if((int)date("G") == 23)
-					$time[2] = 0;
-
-				if((int)date("G") == 0)
-					$time[0] = 23;
-
-				$output = array(	strtoupper(sha1(md5($time[0] . $_SERVER['REMOTE_ADDR'] . $this->db->config['pb_pass'] . $_SERVER['SERVER_ADDR'] . $_SERVER['HTTP_USER_AGENT'] . $_SERVER['SCRIPT_FILENAME']))),
-							strtoupper(sha1(md5($time[1] . $_SERVER['REMOTE_ADDR'] . $this->db->config['pb_pass'] . $_SERVER['SERVER_ADDR'] . $_SERVER['HTTP_USER_AGENT'] . $_SERVER['SCRIPT_FILENAME']))),
-							strtoupper(sha1(md5($time[2] . $_SERVER['REMOTE_ADDR'] . $this->db->config['pb_pass'] . $_SERVER['SERVER_ADDR'] . $_SERVER['HTTP_USER_AGENT'] . $_SERVER['SCRIPT_FILENAME']))));
-
-				return $output;
+				$jsHeaders = @get_headers($cbdir . "/swfobject.js");
+				if(preg_match("|200|", $jsHeaders[0]))
+					return true;
+				else
+					return false; 
 			}
-
-		public function cookieName()
-			{
-				$output = strtoupper(sha1(str_rot13(md5($_SERVER['REMOTE_ADDR'] . $_SERVER['SERVER_ADDR'] . $_SERVER['HTTP_USER_AGENT'] . $_SERVER['SCRIPT_FILENAME']))));
-				return $output;
-			}
+			else
+				return false;
+		} else {
+			if(file_exists($this->db->config['pb_clipboard']) 
+				&& file_exists($cbdir . "/swfobject.js"))
+				return true;
+			else
+				return false;
+		}
+				
 
 	}
+
+	public function generateRandomString($length)
+	{
+		$checkArray = array('install', 'api', 'defaults', 'recent', 'raw', 
+			'moo', 'download', 'pastes', 'subdomain', 'forbidden', 0);
+
+		$characters = "0123456789abcdefghijklmnopqrstuvwxyz";  
+
+		if($this->db->config['pb_hexlike_id'])
+			$characters = "0123456789abcdefabcdef";
+
+		$output = "";
+		for ($p = 0; $p < $length; $p++) 
+			$output .= $characters[mt_rand(0, strlen($characters))];
+					
+		if(is_bool($output) || $output == NULL || strlen($output) < $length 
+			|| in_array($output, $checkArray))
+			return $this->generateRandomString($length);
+		else
+    		return (string)$output;
+	}
+
+	public function cleanUp($amount)
+	{
+		if(!$this->db->config['pb_autoclean'])
+			return false;
+
+		if(!file_exists('INSTALL_LOCK'))
+			return false;
+	
+		switch($this->db->dbt)
+		{
+			case "mysql":
+				$this->db->connect();
+				$result = array();
+				$query = "SELECT * FROM " 
+					. $this->db->config['mysql_connection_config']['db_table'] 
+					. " WHERE Lifespan <= " . time() 
+					. " AND Lifespan > 0 ORDER BY Datetime ASC LIMIT " 
+					. $amount;
+				$result_temp = mysql_query($query);
+
+				while ($row = mysql_fetch_assoc($result_temp))
+					 $result[] = $row;
+
+				mysql_free_result($result_temp);
+			break;
+			case "txt":
+				$index = $this->db->deserializer($this->db->read(
+					$this->db->setDataPath() . "/" 
+					. $this->db->config['txt_config']['db_index']));
+
+				if(is_array($index) && count($index) > $amount + 1)
+					shuffle($index);
+
+				$int = 0;
+				$result = array();
+
+				if(count($index) > 0)
+				{ 
+					foreach($index as $row)
+					{ 
+						if($int < $amount) 
+						{ 
+							$result[] = $this->db->readPaste(
+								str_replace("!", NULL, $row)); 
+						} else { 
+							break; 
+						} 
+						
+						$int++;	
+					} 
+				}
+			break;
+		}
+
+		foreach($result as $paste)
+		{
+			if($paste['Lifespan'] == 0)
+				$paste['Lifespan'] = time() + time();
+
+			if(gmdate('U') > $paste['Lifespan'])
+				$this->db->dropPaste($paste['ID']);
+		}
+
+		return $result;
+	}
+
+	public function linker($id = FALSE)
+	{
+		$dir = dirname($_SERVER['SCRIPT_NAME']);
+
+		if(strlen($dir) > 1)
+			$now = $this->db->config['pb_protocol'] . "://" 
+				. $_SERVER['SERVER_NAME'] . $dir;
+		else
+			$now = $this->db->config['pb_protocol'] . "://" 
+				. $_SERVER['SERVER_NAME'];
+
+		$file = basename($_SERVER['SCRIPT_NAME']);
+				
+		switch($this->db->config['pb_rewrite'])
+		{
+			case TRUE:
+				if($id == FALSE)
+					$output = $now . "/";
+				else
+					$output = $now . "/" . $id;
+			break;
+			case FALSE:
+				if($id == FALSE)
+					$output = $now . "/";
+				else
+					$output = $now . "/" . $file . "?" . $id;
+			break;
+		}
+
+		return $output;
+	}
+
+	public function setSubdomain($force = FALSE)
+	{
+		if(!$this->db->config['pb_subdomains'])
+			return NULL;
+
+		if($force)
+			return $this->db->config['txt_config']['db_folder'] = $this->db->config['txt_config']['db_folder'] 
+				. "/subdomain/" . $force;
+
+		if(!file_exists('INSTALL_LOCK'))
+			return NULL;
+
+		$domain = strtolower(str_replace("www.", "", $_SERVER['SERVER_NAME']));
+		$explode = explode(".", $domain, 2);
+		$sub = $explode[0];
+
+		switch($this->db->dbt)
+		{
+			case "mysql":
+				$this->db->connect();
+				$subdomain_list = array();
+				$query = "SELECT * FROM " 
+					. $this->db->config['mysql_connection_config']['db_table'] 
+					. " WHERE ID = 'forbidden' LIMIT 1";
+				$result_temp = mysql_query($query);
+
+				while($row = mysql_fetch_assoc($result_temp))
+					 $subdomain_list['forbidden'] = unserialize($row['Data']);
+
+				$query = "SELECT * FROM " 
+					. $this->db->config['mysql_connection_config']['db_table'] 
+					. " WHERE ID = 'subdomain' AND Subdomain = '" . $sub . "'";
+				$result_temp = mysql_query($query);
+
+				if(mysql_num_rows($result_temp) > 0)
+					$in_list = TRUE;
+				else
+					$in_list = FALSE;
+
+				mysql_free_result($result_temp);
+			break;
+			case "txt":
+				$subdomainsFile = $this->db->config['txt_config']['db_folder'] 
+					. "/" . $this->db->config['txt_config']['db_index'] 
+					. "_SUBDOMAINS";
+				$subdomain_list = $this->db->deserializer(
+					$this->db->read($subdomainsFile));
+				$in_list = in_array($sub, $subdomain_list);
+			break;
+		}
+
+		if(!in_array($sub, $subdomain_list['forbidden']) && $in_list)
+		{
+			$this->db->config['txt_config']['db_folder'] = $this->db->config['txt_config']['db_folder'] 
+				. "/subdomain/" . $sub;
+
+			return $sub;
+		} else
+			return NULL;				
+	}
+
+	public function makeSubdomain($subdomain)
+	{
+		if(!file_exists('INSTALL_LOCK'))
+			return NULL;
+
+		if(!$this->db->config['pb_subdomains'])
+			return FALSE;
+
+		$subdomain = $this->checkSubdomain(strtolower($subdomain));
+
+		switch($this->db->dbt)
+		{
+			case "mysql":
+				$this->db->connect();
+				$subdomain_list = array();
+				$query = "SELECT * FROM " 
+					. $this->db->config['mysql_connection_config']['db_table'] 
+					. " WHERE ID = 'forbidden' LIMIT 1";
+				$result_temp = mysql_query($query);
+
+				while($row = mysql_fetch_assoc($result_temp))
+					 $subdomain_list['forbidden'] = unserialize($row['Data']);
+
+				$query = "SELECT * FROM " 
+					. $this->db->config['mysql_connection_config']['db_table'] 
+					. " WHERE ID = 'subdomain' AND Subdomain = '" 
+					. $subdomain . "'";
+				$result_temp = mysql_query($query);
+
+				if(mysql_num_rows($result_temp) > 0)
+					$in_list = TRUE;
+				else
+					$in_list = FALSE;
+
+				mysql_free_result($result_temp);
+			break;
+			case "txt":
+				$subdomainsFile = $this->db->config['txt_config']['db_folder'] 
+					. "/" . $this->db->config['txt_config']['db_index'] 
+					. "_SUBDOMAINS";
+				$subdomain_list = $this->db->deserializer(
+					$this->db->read($subdomainsFile));
+				$in_list = in_array($subdomain, $subdomain_list);
+			break;
+		}
+
+		if(!in_array($subdomain, $subdomain_list['forbidden']) && !$in_list)
+		{
+			switch($this->db->dbt)
+			{
+				case "mysql":
+					$domain = array('ID' => "subdomain", 
+						'Subdomain' => $subdomain, 
+						'Image' => 1, 
+						'Author' => "System", 
+						'Protect' => 1, 
+						'Lifespan' => 0, 
+						'Content' => "Subdomain marker");
+					$this->db->insertPaste($domain['ID'], $domain, TRUE);
+					mkdir($this->db->config['txt_config']['db_folder'] 
+						. "/subdomain/" . $subdomain);
+					chmod($this->db->config['txt_config']['db_folder'] 
+						. "/subdomain/" . $subdomain, 
+						$this->db->config['txt_config']['dir_mode']);
+					mkdir($this->db->config['txt_config']['db_folder'] 
+						. "/subdomain/" . $subdomain . "/" 
+						. $this->db->config['txt_config']['db_images']);
+					chmod($this->db->config['txt_config']['db_folder'] 
+						. "/subdomain/" . $subdomain . "/" 
+						. $this->db->config['txt_config']['db_images'], 
+						$this->db->config['txt_config']['dir_mode']);
+					$this->db->write("FORBIDDEN", 
+						$this->db->config['txt_config']['db_folder'] 
+						. "/subdomain/" . $subdomain . "/index.html");
+					chmod($this->db->config['txt_config']['db_folder'] 
+						. "/subdomain/" . $subdomain . "/index.html", 
+						$this->db->config['txt_config']['dir_mode']);
+					$this->db->write("FORIDDEN", 
+						$this->db->config['txt_config']['db_folder'] 
+						. "/subdomain/" . $subdomain . "/" 
+						. $this->db->config['txt_config']['db_images'] 
+						. "/index.html");
+					chmod($this->db->config['txt_config']['db_folder'] 
+						. "/subdomain/" . $subdomain . "/" 
+						. $this->db->config['txt_config']['db_images'] 
+						. "/index.html", 
+						$this->db->config['txt_config']['file_mode']);
+
+					return $subdomain;
+				break;
+				case "txt":
+					$subdomain_list[] = $subdomain;
+					$subdomain_list = $this->db->serializer($subdomain_list);
+					$this->db->write($subdomain_list, $subdomainsFile);
+					$subdomain = $subdomain;
+					mkdir($this->db->config['txt_config']['db_folder'] 
+						. "/subdomain/" . $subdomain);
+					chmod($this->db->config['txt_config']['db_folder'] 
+						. "/subdomain/" . $subdomain, 
+						$this->db->config['txt_config']['dir_mode']);
+					mkdir($this->db->config['txt_config']['db_folder'] 
+						. "/subdomain/" . $subdomain . "/" 
+						. $this->db->config['txt_config']['db_images']);
+					chmod($this->db->config['txt_config']['db_folder'] 
+						. "/subdomain/" . $subdomain . "/" 
+						. $this->db->config['txt_config']['db_images'], 
+						$this->db->config['txt_config']['dir_mode']);
+					$this->db->write("FORBIDDEN", 
+						$this->db->config['txt_config']['db_folder'] 
+						. "/subdomain/" . $subdomain . "/index.html");
+					chmod($this->db->config['txt_config']['db_folder'] 
+						. "/subdomain/" . $subdomain . "/index.html", 
+						$this->db->config['txt_config']['dir_mode']);
+					$this->db->write($this->db->serializer(array()), 
+						$this->db->config['txt_config']['db_folder'] 
+						. "/subdomain/" . $subdomain . "/" 
+						. $this->db->config['txt_config']['db_index']);
+					chmod($this->db->config['txt_config']['db_folder'] 
+						. "/subdomain/" . $subdomain . "/" 
+						. $this->db->config['txt_config']['db_index'], 
+						$this->db->config['txt_config']['file_mode']);
+					$this->db->write("FORIDDEN", 
+						$this->db->config['txt_config']['db_folder'] 
+						. "/subdomain/" . $subdomain . "/" 
+						. $this->db->config['txt_config']['db_images'] 
+						. "/index.html");
+					chmod($this->db->config['txt_config']['db_folder'] 
+						. "/subdomain/" . $subdomain . "/" 
+						. $this->db->config['txt_config']['db_images'] 
+						. "/index.html", 
+						$this->db->config['txt_config']['file_mode']);
+
+					return $subdomain;
+				break;
+			}
+		} else
+			return FALSE;				
+	}
+
+	public function generateForbiddenSubdomains($mysql = FALSE)
+	{
+		$domain = str_replace("www.", "", $_SERVER['SERVER_NAME']);
+		$explode = explode(".", $domain, 2);
+		$domain = $explode[0];
+		$output = array(
+			'forbidden' => array("www", $domain, "admin", "owner", "api")
+		);
+
+		if($mysql)
+			$output = array("www", $domain, "admin", "owner", "api");
+
+		return $output;
+	}
+
+	public function hasher($string, $salts = NULL)
+	{
+		if(!is_array($salts))
+			$salts = NULL;
+
+		if(count($salts) < 2)
+			$salts = NULL;
+
+		if(!$this->db->config['pb_algo'])
+			$this->db->config['pb_algo'] = "md5";
+
+		$hashedSalt = NULL;
+
+		if($salts)
+		{
+			$hashedSalt = array(NULL, NULL);
+						
+			for($i = 0; $i < strlen(max($salts)) ; $i++)
+			{
+				$hashedSalt[0] .= $salts[1][$i] . $salts[3][$i];
+				$hashedSalt[1] .= $salts[2][$i] . $salts[4][$i];
+			}
+
+			$hashedSalt[0] = hash($this->db->config['pb_algo'], 
+				$hashedSalt[0]);
+			$hashedSalt[1] = hash($this->db->config['pb_algo'], 
+				$hashedSalt[1]);
+		}
+
+		if(is_array($hashedSalt))
+			$output = hash($this->db->config['pb_algo'], $hashedSalt[0] 
+				. $string . $hashedSalt[1]);
+		else
+			$output = hash($this->db->config['pb_algo'], $string);
+
+		return $output;
+
+	}
+
+	public function encrypt($string, $key)
+	{
+		$mc_iv = mcrypt_create_iv(32, MCRYPT_RAND);
+
+		$key = md5($this->hasher($key, $this->db->config['pb_salts']));
+
+		return base64_encode(trim(mcrypt_encrypt(MCRYPT_RIJNDAEL_256, $key, 
+			base64_encode($string), MCRYPT_MODE_ECB, $mc_iv)));		
+	}
+
+	public function decrypt($cryptstring, $key)
+	{
+		$mc_iv = mcrypt_create_iv(32, MCRYPT_RAND);
+		$cryptstring = base64_decode($cryptstring);
+
+		$key = md5($this->hasher($key, $this->db->config['pb_salts']));
+
+		return base64_decode(trim(mcrypt_decrypt(MCRYPT_RIJNDAEL_256, $key, 
+			$cryptstring, MCRYPT_MODE_ECB, $mc_iv)));	
+	}
+
+	public function testDecrypt($checkstring, $key)
+	{
+		if($this->db->config['pb_encryption_checkphrase'] 
+			== $this->decrypt($checkstring, $key))
+			return TRUE;
+		else 
+			return FALSE;
+	}
+
+	public function event($time, $single = FALSE)
+	{
+		$context = array(
+   			array(60 * 60 * 24 * 365 , "years"),
+   			array(60 * 60 * 24 * 7, "weeks"),
+   			array(60 * 60 * 24 , "days"),
+   			array(60 * 60 , "hours"),
+   			array(60 , "minutes"),
+			array(1 , "seconds"),
+   		);
+    
+   		$now = gmdate('U');
+   		$difference = $now - $time;
+	
+    
+		for($i = 0, $n = count($context); $i < $n; $i++) 
+		{
+        	$seconds = $context[$i][0];
+        	$name = $context[$i][1];
+        
+			if(($count = floor($difference / $seconds)) > 0) 
+           		break;
+    	}
+    
+		$print = ($count == 1) ? '1 ' . substr($name, 0, -1) : $count . " " 
+			. $name;
+				
+		if($single)
+			return $print;
+    
+		if($i + 1 < $n) 
+		{
+  			$seconds2 = $context[$i + 1][0];
+    		$name2 = $context[$i + 1][1];
+        
+			if (($count2 = floor(($difference - ($seconds * $count)) 
+				/ $seconds2)) > 0) 
+				$print .= ($count2 == 1) ? ' 1 ' . substr($name2, 0, -1) : " " 
+					. $count2 . " " . $name2;
+    	}
+	
+   		return $print;
+	}
+
+	public function checkIfRedir($reqURI)
+	{
+		if(strlen($reqURI) < 1)
+			return false;
+
+		$pasteData = $this->db->readPaste($reqURI);
+
+		if($this->db->dbt == "mysql")
+			$pasteData = $pasteData[0];
+
+		if(strstr($pasteData['URL'], $this->linker()))
+			$pasteData['URL'] = $pasteData['URL'] . "!";
+
+		if($pasteData['Lifespan'] == 0)
+			$pasteData['Lifespan'] = time() + time();
+
+		if(gmdate('U') > $pasteData['Lifespan'])
+			return false;
+
+		if($pasteData['URL'] != NULL && $this->db->config['pb_url'])
+			return $pasteData['URL'];
+		else
+			return false;
+	}
+
+	public function humanReadableFilesize($size) 
+	{
+ 		// Snippet from: http://www.jonasjohn.de/snippets/php/readable-filesize.htm
+ 		$mod = 1024;
+ 
+   		$units = explode(' ', 'b Kb Mb Gb Tb Pb');
+
+		for($i = 0; $size > $mod; $i++)
+       		$size /= $mod;
+ 
+		return round($size, 2) . ' ' . $units[$i];
+	}
+
+	public function stristr_array($haystack, $needle) 
+	{
+		if(!is_array($needle))
+			return false;
+
+		foreach($needle as $element) 
+		{
+			if(stristr($haystack, $element))
+				return $element;
+		}
+
+		return false;
+	}
+
+	public function token($generate = FALSE)
+	{
+		if($generate == TRUE)
+		{
+			$output = strtoupper(sha1(md5((int)date("G") 
+				. $_SERVER['REMOTE_ADDR'] . $this->db->config['pb_pass'] 
+				. $_SERVER['SERVER_ADDR']. $_SERVER['HTTP_USER_AGENT'] 
+				. $_SERVER['SCRIPT_FILENAME'])));
+
+			return $output;
+		}
+
+		$time = array(
+			((int)date("G") - 1), 
+			((int)date("G")), 
+			((int)date("G") + 1));
+
+		if((int)date("G") == 23)
+			$time[2] = 0;
+
+		if((int)date("G") == 0)
+			$time[0] = 23;
+
+		$output = array(strtoupper(sha1(md5($time[0] . $_SERVER['REMOTE_ADDR'] 
+				. $this->db->config['pb_pass'] . $_SERVER['SERVER_ADDR'] 
+				. $_SERVER['HTTP_USER_AGENT'] . $_SERVER['SCRIPT_FILENAME']))),
+			strtoupper(sha1(md5($time[1] . $_SERVER['REMOTE_ADDR'] 
+				. $this->db->config['pb_pass'] . $_SERVER['SERVER_ADDR'] 
+				. $_SERVER['HTTP_USER_AGENT'] . $_SERVER['SCRIPT_FILENAME']))),
+			strtoupper(sha1(md5($time[2] . $_SERVER['REMOTE_ADDR'] 
+				. $this->db->config['pb_pass'] . $_SERVER['SERVER_ADDR'] 
+				. $_SERVER['HTTP_USER_AGENT'] 
+				. $_SERVER['SCRIPT_FILENAME']))));
+
+		return $output;
+	}
+
+	public function cookieName()
+	{
+		$output = strtoupper(sha1(str_rot13(md5($_SERVER['REMOTE_ADDR'] 
+			. $_SERVER['SERVER_ADDR'] . $_SERVER['HTTP_USER_AGENT'] 
+			. $_SERVER['SCRIPT_FILENAME']))));
+
+		return $output;
+	}
+
+}
 
 $requri = $_SERVER['REQUEST_URI'];
 $scrnam = $_SERVER['SCRIPT_NAME'];
@@ -1510,11 +1626,11 @@ if(file_exists('./INSTALL_LOCK') && $CONFIG['pb_rewrite'])
 $CONFIG['requri'] = $requri;
 
 if(strstr($requri, "@"))
-	{
-		$tempRequri = explode('@', $requri, 2);
-		$requri = $tempRequri[0];
-		$reqhash = $tempRequri[1];
-	}
+{
+	$tempRequri = explode('@', $requri, 2);
+	$requri = $tempRequri[0];
+	$reqhash = $tempRequri[1];
+}
 
 $db = new db($CONFIG);
 $bin = new bin($db);
@@ -1523,19 +1639,21 @@ $CONFIG['pb_pass'] = $bin->hasher($CONFIG['pb_pass'], $CONFIG['pb_salts']);
 $db->config['pb_pass'] = $CONFIG['pb_pass'];
 $bin->db->config['pb_pass'] = $CONFIG['pb_pass'];
 
-if(file_exists('./INSTALL_LOCK') && @$_POST['subdomain'] && $CONFIG['pb_subdomains'])
-	{
-		$seed = $bin->makeSubdomain(@$_POST['subdomain']);
-		if($CONFIG['pb_https_class_1'])
-			$CONFIG['pb_protocol_fix'] = "http";
-		else
-			$CONFIG['pb_protocol_fix'] = $CONFIG['pb_protocol'];
+if(file_exists('./INSTALL_LOCK') && @$_POST['subdomain']
+   && $CONFIG['pb_subdomains'])
+{
+	$seed = $bin->makeSubdomain(@$_POST['subdomain']);
+	if($CONFIG['pb_https_class_1'])
+		$CONFIG['pb_protocol_fix'] = "http";
+	else
+		$CONFIG['pb_protocol_fix'] = $CONFIG['pb_protocol'];
 
-		if($seed)
-			header("Location: " . str_replace($CONFIG['pb_protocol'] . "://", $CONFIG['pb_protocol_fix'] . "://" . $seed . ".", $bin->linker()));
-		else
-			$error_subdomain = TRUE;
-	}
+	if($seed)
+		header("Location: " . str_replace($CONFIG['pb_protocol'] . "://", 
+			$CONFIG['pb_protocol_fix'] . "://" . $seed . ".", $bin->linker()));
+	else
+		$error_subdomain = TRUE;
+}
 
 $CONFIG['subdomain'] = $bin->setSubdomain();
 $db->config['subdomain'] = $CONFIG['subdomain'];
@@ -1544,577 +1662,908 @@ $bin->db->config['subdomain'] = $CONFIG['subdomain'];
 $ckey = $bin->cookieName();
 
 if(@$_POST['author'] && is_numeric($CONFIG['pb_author_cookie']))
-	setcookie($ckey, $bin->checkAuthor(@$_POST['author']), time() + $CONFIG['pb_author_cookie']);
+	setcookie($ckey, $bin->checkAuthor(@$_POST['author']), 
+		time() + $CONFIG['pb_author_cookie']);
 
 $CONFIG['_temp_pb_author'] = $_COOKIE[$ckey];
 
 switch($_COOKIE[$ckey])
-	{
-		case NULL:
-			$CONFIG['_temp_pb_author'] = $CONFIG['pb_author'];
-		break;
-		case $CONFIG['pb_author']:
-			$CONFIG['_temp_pb_author'] = $CONFIG['pb_author'];
-		break;
-		default:
-			$CONFIG['_temp_pb_author'] = $_COOKIE[$ckey];
-		break;
-	}
+{
+	case NULL:
+		$CONFIG['_temp_pb_author'] = $CONFIG['pb_author'];
+	break;
+	case $CONFIG['pb_author']:
+		$CONFIG['_temp_pb_author'] = $CONFIG['pb_author'];
+	break;
+	default:
+		$CONFIG['_temp_pb_author'] = $_COOKIE[$ckey];
+	break;
+}
 
 if($bin->highlight())
-	{
-		include_once($CONFIG['pb_syntax']);
-		$geshi = new GeSHi('//"Paste does not exist!', 'php');
-		$geshi->enable_classes();
-		$geshi->set_header_type(GESHI_HEADER_PRE_VALID);
-		$geshi->enable_line_numbers(GESHI_NORMAL_LINE_NUMBERS);
-		if($CONFIG['pb_line_highlight_style'])
-			$geshi->set_highlight_lines_extra_style($CONFIG['pb_line_highlight_style']);
-		$highlighterContainer = "<div id=\"highlightContainer\"><label for=\"highlighter\">Syntax Highlighting</label> <select name=\"highlighter\" id=\"highlighter\"> <option value=\"plaintext\">None</option> <option value=\"plaintext\">-------------</option> <option value=\"bash\">Bash</option> <option value=\"c\">C</option> <option value=\"cpp\">C++</option> <option value=\"css\">CSS</option> <option value=\"html4strict\">HTML</option> <option value=\"java\">Java</option> <option value=\"javascript\">Javascript</option> <option value=\"jquery\">jQuery</option> <option value=\"latex\">LaTeX</option> <option value=\"mirc\">mIRC Scripting</option> <option value=\"perl\">Perl</option> <option value=\"php\">PHP</option> <option value=\"python\">Python</option> <option value=\"rails\">Rails</option> <option value=\"ruby\">Ruby</option> <option value=\"sql\">SQL</option> <option value=\"xml\">XML</option> <option value=\"plaintext\">-------------</option> <option value=\"4cs\">GADV 4CS</option> <option value=\"abap\">ABAP</option> <option value=\"actionscript\">ActionScript</option> <option value=\"actionscript3\">ActionScript 3</option> <option value=\"ada\">Ada</option> <option value=\"apache\">Apache configuration</option> <option value=\"applescript\">AppleScript</option> <option value=\"apt_sources\">Apt sources</option> <option value=\"asm\">ASM</option> <option value=\"asp\">ASP</option> <option value=\"autoconf\">Autoconf</option> <option value=\"autohotkey\">Autohotkey</option> <option value=\"autoit\">AutoIt</option> <option value=\"avisynth\">AviSynth</option> <option value=\"awk\">awk</option> <option value=\"bash\">Bash</option> <option value=\"basic4gl\">Basic4GL</option> <option value=\"bf\">Brainfuck</option> <option value=\"bibtex\">BibTeX</option> <option value=\"blitzbasic\">BlitzBasic</option> <option value=\"bnf\">bnf</option> <option value=\"boo\">Boo</option> <option value=\"c\">C</option> <option value=\"c_mac\">C (Mac)</option> <option value=\"caddcl\">CAD DCL</option> <option value=\"cadlisp\">CAD Lisp</option> <option value=\"cfdg\">CFDG</option> <option value=\"cfm\">ColdFusion</option> <option value=\"chaiscript\">ChaiScript</option> <option value=\"cil\">CIL</option> <option value=\"clojure\">Clojure</option> <option value=\"cmake\">CMake</option> <option value=\"cobol\">COBOL</option> <option value=\"cpp\">C++</option> <option value=\"cpp-qt\" class=\"sublang\">&nbsp;&nbsp;C++ (QT)</option> <option value=\"csharp\">C#</option> <option value=\"css\">CSS</option> <option value=\"cuesheet\">Cuesheet</option> <option value=\"d\">D</option> <option value=\"dcs\">DCS</option> <option value=\"delphi\">Delphi</option> <option value=\"diff\">Diff</option> <option value=\"div\">DIV</option> <option value=\"dos\">DOS</option> <option value=\"dot\">dot</option> <option value=\"ecmascript\">ECMAScript</option> <option value=\"eiffel\">Eiffel</option> <option value=\"email\">eMail (mbox)</option> <option value=\"erlang\">Erlang</option> <option value=\"fo\">FO (abas-ERP)</option> <option value=\"fortran\">Fortran</option> <option value=\"freebasic\">FreeBasic</option> <option value=\"fsharp\">F#</option> <option value=\"gambas\">GAMBAS</option> <option value=\"gdb\">GDB</option> <option value=\"genero\">genero</option> <option value=\"genie\">Genie</option> <option value=\"gettext\">GNU Gettext</option> <option value=\"glsl\">glSlang</option> <option value=\"gml\">GML</option> <option value=\"gnuplot\">Gnuplot</option> <option value=\"groovy\">Groovy</option> <option value=\"gwbasic\">GwBasic</option> <option value=\"haskell\">Haskell</option> <option value=\"hicest\">HicEst</option> <option value=\"hq9plus\">HQ9+</option> <option value=\"html4strict\">HTML</option> <option value=\"icon\">Icon</option> <option value=\"idl\">Uno Idl</option> <option value=\"ini\">INI</option> <option value=\"inno\">Inno</option> <option value=\"intercal\">INTERCAL</option> <option value=\"io\">Io</option> <option value=\"j\">J</option> <option value=\"java\">Java</option> <option value=\"java5\">Java(TM) 2 Platform Standard Edition 5.0</option> <option value=\"javascript\">Javascript</option> <option value=\"jquery\">jQuery</option> <option value=\"kixtart\">KiXtart</option> <option value=\"klonec\">KLone C</option> <option value=\"klonecpp\">KLone C++</option> <option value=\"latex\">LaTeX</option> <option value=\"lisp\">Lisp</option> <option value=\"locobasic\">Locomotive Basic</option> <option value=\"logtalk\">Logtalk</option> <option value=\"lolcode\">LOLcode</option> <option value=\"lotusformulas\">Lotus Notes @Formulas</option> <option value=\"lotusscript\">LotusScript</option> <option value=\"lscript\">LScript</option> <option value=\"lsl2\">LSL2</option> <option value=\"lua\">Lua</option> <option value=\"m68k\">Motorola 68000 Assembler</option> <option value=\"magiksf\">MagikSF</option> <option value=\"make\">GNU make</option> <option value=\"mapbasic\">MapBasic</option> <option value=\"matlab\">Matlab M</option> <option value=\"mirc\">mIRC Scripting</option> <option value=\"mmix\">MMIX</option> <option value=\"modula2\">Modula-2</option> <option value=\"modula3\">Modula-3</option> <option value=\"mpasm\">Microchip Assembler</option> <option value=\"mxml\">MXML</option> <option value=\"mysql\">MySQL</option> <option value=\"newlisp\">newlisp</option> <option value=\"nsis\">NSIS</option> <option value=\"oberon2\">Oberon-2</option> <option value=\"objc\">Objective-C</option> <option value=\"ocaml\">OCaml</option> <option value=\"ocaml-brief\" class=\"sublang\">&nbsp;&nbsp;OCaml (brief)</option> <option value=\"oobas\">OpenOffice.org Basic</option> <option value=\"oracle11\">Oracle 11 SQL</option> <option value=\"oracle8\">Oracle 8 SQL</option> <option value=\"oxygene\">Oxygene (Delphi Prism)</option> <option value=\"oz\">OZ</option> <option value=\"pascal\">Pascal</option> <option value=\"pcre\">PCRE</option> <option value=\"per\">per</option> <option value=\"perl\">Perl</option> <option value=\"perl6\">Perl 6</option> <option value=\"pf\">OpenBSD Packet Filter</option> <option value=\"php\">PHP</option> <option value=\"php-brief\" class=\"sublang\">&nbsp;&nbsp;PHP (brief)</option> <option value=\"pic16\">PIC16</option> <option value=\"pike\">Pike</option> <option value=\"pixelbender\">Pixel Bender 1.0</option> <option value=\"plsql\">PL/SQL</option> <option value=\"postgresql\">PostgreSQL</option> <option value=\"povray\">POVRAY</option> <option value=\"powerbuilder\">PowerBuilder</option> <option value=\"powershell\">PowerShell</option> <option value=\"progress\">Progress</option> <option value=\"prolog\">Prolog</option> <option value=\"properties\">PROPERTIES</option> <option value=\"providex\">ProvideX</option> <option value=\"purebasic\">PureBasic</option> <option value=\"python\">Python</option> <option value=\"q\">q/kdb+</option> <option value=\"qbasic\">QBasic/QuickBASIC</option> <option value=\"rails\">Rails</option> <option value=\"rebol\">REBOL</option> <option value=\"reg\">Microsoft Registry</option> <option value=\"robots\">robots.txt</option> <option value=\"rpmspec\">RPM Specification File</option> <option value=\"rsplus\">R / S+</option> <option value=\"ruby\">Ruby</option> <option value=\"sas\">SAS</option> <option value=\"scala\">Scala</option> <option value=\"scheme\">Scheme</option> <option value=\"scilab\">SciLab</option> <option value=\"sdlbasic\">sdlBasic</option> <option value=\"smalltalk\">Smalltalk</option> <option value=\"smarty\">Smarty</option> <option value=\"sql\">SQL</option> <option value=\"systemverilog\">SystemVerilog</option> <option value=\"tcl\">TCL</option> <option value=\"teraterm\">Tera Term Macro</option> <option value=\"text\">Text</option> <option value=\"thinbasic\">thinBasic</option> <option value=\"tsql\">T-SQL</option> <option value=\"typoscript\">TypoScript</option> <option value=\"unicon\">Unicon (Unified Extended Dialect of Icon)</option> <option value=\"vala\">Vala</option> <option value=\"vb\">Visual Basic</option> <option value=\"vbnet\">vb.net</option> <option value=\"verilog\">Verilog</option> <option value=\"vhdl\">VHDL</option> <option value=\"vim\">Vim Script</option> <option value=\"visualfoxpro\">Visual Fox Pro</option> <option value=\"visualprolog\">Visual Prolog</option> <option value=\"whitespace\">Whitespace</option> <option value=\"whois\">Whois (RPSL format)</option> <option value=\"winbatch\">Winbatch</option> <option value=\"xbasic\">XBasic</option> <option value=\"xml\">XML</option> <option value=\"xorg_conf\">Xorg configuration</option> <option value=\"xpp\">X++</option> <option value=\"yaml\">YAML</option> <option value=\"z80\">ZiLOG Z80 Assembler</option> </select> </div>";
-	}
+{
+	include_once($CONFIG['pb_syntax']);
+	$geshi = new GeSHi('//"Paste does not exist!', 'php');
+	$geshi->enable_classes();
+	$geshi->set_header_type(GESHI_HEADER_PRE_VALID);
+	$geshi->enable_line_numbers(GESHI_NORMAL_LINE_NUMBERS);
+
+	if($CONFIG['pb_line_highlight_style'])
+		$geshi->set_highlight_lines_extra_style(
+			$CONFIG['pb_line_highlight_style']);
+
+	$highlighterContainer = '<div id="highlightContainer">
+		<label for="highlighter">Syntax Highlighting</label>
+		<select name="highlighter">
+			<option value="plaintext">None</option> 
+			<option value="plaintext">-------------</option> 
+			<option value="bash">Bash</option> 
+			<option value="c">C</option> 
+			<option value="cpp">C++</option> 
+			<option value="css">CSS</option> 
+			<option value="html4strict">HTML</option> 
+			<option value="java">Java</option> 
+			<option value="javascript">Javascript</option> 
+			<option value="jquery">jQuery</option> 
+			<option value="mirc">mIRC Scripting</option> 
+			<option value="perl">Perl</option> 
+			<option value="php">PHP</option> 
+			<option value="python">Python</option>
+			<option value="rails">Rails</option> 
+			<option value="ruby">Ruby</option> 
+			<option value="sql">SQL</option> 
+			<option value="xml">XML</option> 
+			<option value="plaintext">-------------</option> 
+			<option value="4cs">GADV 4CS</option>
+			<option value="abap">ABAP</option>
+			<option value="actionscript">ActionScript</option>
+			<option value="actionscript3">ActionScript 3</option>
+			<option value="ada">Ada</option>
+			<option value="aimms">AIMMS3</option>
+			<option value="algol68">ALGOL 68</option>
+			<option value="apache">Apache configuration</option>
+			<option value="applescript">AppleScript</option>
+			<option value="apt_sources">Apt sources</option>
+			<option value="arm">ARM ASSEMBLER</option>
+			<option value="asm">ASM</option>
+			<option value="asp">ASP</option>
+			<option value="asymptote">asymptote</option>
+			<option value="autoconf">Autoconf</option>
+			<option value="autohotkey">Autohotkey</option>
+			<option value="autoit">AutoIt</option>
+			<option value="avisynth">AviSynth</option>
+			<option value="awk">awk</option>
+			<option value="bascomavr">BASCOM AVR</option>
+			<option value="bash">Bash</option>
+			<option value="basic4gl">Basic4GL</option>
+			<option value="bf">Brainfuck</option>
+			<option value="bibtex">BibTeX</option>
+			<option value="blitzbasic">BlitzBasic</option>
+			<option value="bnf">bnf</option>
+			<option value="boo">Boo</option>
+			<option value="c">C</option>
+			<option value="c_loadrunner">C (LoadRunner)</option>
+			<option value="c_mac">C (Mac)</option>
+			<option value="c_winapi">C (WinAPI)</option>
+			<option value="caddcl">CAD DCL</option>
+			<option value="cadlisp">CAD Lisp</option>
+			<option value="cfdg">CFDG</option>
+			<option value="cfm">ColdFusion</option>
+			<option value="chaiscript">ChaiScript</option>
+			<option value="chapel">Chapel</option>
+			<option value="cil">CIL</option>
+			<option value="clojure">Clojure</option>
+			<option value="cmake">CMake</option>
+			<option value="cobol">COBOL</option>
+			<option value="coffeescript">CoffeeScript</option>
+			<option value="cpp">C++</option>
+			<option value="cpp-qt" class="sublang">&nbsp;&nbsp;C++ (Qt)</option>
+			<option value="cpp-winapi" class="sublang">&nbsp;&nbsp;C++ (WinAPI)</option>
+			<option value="csharp">C#</option>
+			<option value="css">CSS</option>
+			<option value="cuesheet">Cuesheet</option>
+			<option value="d">D</option>
+			<option value="dart">Dart</option>
+			<option value="dcl">DCL</option>
+			<option value="dcpu16">DCPU-16 Assembly</option>
+			<option value="dcs">DCS</option>
+			<option value="delphi">Delphi</option>
+			<option value="diff">Diff</option>
+			<option value="div">DIV</option>
+			<option value="dos">DOS</option>
+			<option value="dot">dot</option>
+			<option value="e">E</option>
+			<option value="ecmascript">ECMAScript</option>
+			<option value="eiffel">Eiffel</option>
+			<option value="email">eMail (mbox)</option>
+			<option value="epc">EPC</option>
+			<option value="erlang">Erlang</option>
+			<option value="euphoria">Euphoria</option>
+			<option value="ezt">EZT</option>
+			<option value="f1">Formula One</option>
+			<option value="falcon">Falcon</option>
+			<option value="fo">FO (abas-ERP)</option>
+			<option value="fortran">Fortran</option>
+			<option value="freebasic">FreeBasic</option>
+			<option value="freeswitch">FreeSWITCH</option>
+			<option value="fsharp">F#</option>
+			<option value="gambas">GAMBAS</option>
+			<option value="gdb">GDB</option>
+			<option value="genero">genero</option>
+			<option value="genie">Genie</option>
+			<option value="gettext">GNU Gettext</option>
+			<option value="glsl">glSlang</option>
+			<option value="gml">GML</option>
+			<option value="gnuplot">Gnuplot</option>
+			<option value="go">Go</option>
+			<option value="groovy">Groovy</option>
+			<option value="gwbasic">GwBasic</option>
+			<option value="haskell">Haskell</option>
+			<option value="haxe">Haxe</option>
+			<option value="hicest">HicEst</option>
+			<option value="hq9plus">HQ9+</option>
+			<option value="html4strict">HTML</option>
+			<option value="html5">HTML5</option>
+			<option value="icon">Icon</option>
+			<option value="idl">Uno Idl</option>
+			<option value="ini">INI</option>
+			<option value="inno">Inno</option>
+			<option value="intercal">INTERCAL</option>
+			<option value="io">Io</option>
+			<option value="ispfpanel">ISPF Panel</option>
+			<option value="j">J</option>
+			<option value="java">Java</option>
+			<option value="java5">Java(TM) 2 Platform Standard Edition 5.0</option>
+			<option value="javascript">Javascript</option>
+			<option value="jcl">JCL</option>
+			<option value="jquery">jQuery</option>
+			<option value="kixtart">KiXtart</option>
+			<option value="klonec">KLone C</option>
+			<option value="klonecpp">KLone C++</option>
+			<option value="latex">LaTeX</option>
+			<option value="lb">Liberty BASIC</option>
+			<option value="ldif">LDIF</option>
+			<option value="lisp">Lisp</option>
+			<option value="llvm">LLVM Intermediate Representation</option>
+			<option value="locobasic">Locomotive Basic</option>
+			<option value="logtalk">Logtalk</option>
+			<option value="lolcode">LOLcode</option>
+			<option value="lotusformulas">Lotus Notes @Formulas</option>
+			<option value="lotusscript">LotusScript</option>
+			<option value="lscript">LScript</option>
+			<option value="lsl2">LSL2</option>
+			<option value="lua">Lua</option>
+			<option value="m68k">Motorola 68000 Assembler</option>
+			<option value="magiksf">MagikSF</option>
+			<option value="make">GNU make</option>
+			<option value="mapbasic">MapBasic</option>
+			<option value="matlab">Matlab M</option>
+			<option value="mirc">mIRC Scripting</option>
+			<option value="mmix">MMIX</option>
+			<option value="modula2">Modula-2</option>
+			<option value="modula3">Modula-3</option>
+			<option value="mpasm">Microchip Assembler</option>
+			<option value="mxml">MXML</option>
+			<option value="mysql">MySQL</option>
+			<option value="nagios">Nagios</option>
+			<option value="netrexx">NetRexx</option>
+			<option value="newlisp">newlisp</option>
+			<option value="nginx">nginx</option>
+			<option value="nsis">NSIS</option>
+			<option value="oberon2">Oberon-2</option>
+			<option value="objc">Objective-C</option>
+			<option value="objeck">Objeck Programming Language</option>
+			<option value="ocaml">OCaml</option>
+			<option value="ocaml-brief" class="sublang">&nbsp;&nbsp;OCaml (brief)</option>
+			<option value="octave">GNU/Octave</option>
+			<option value="oobas">OpenOffice.org Basic</option>
+			<option value="oorexx">ooRexx</option>
+			<option value="oracle11">Oracle 11 SQL</option>
+			<option value="oracle8">Oracle 8 SQL</option>
+			<option value="oxygene">Oxygene (Delphi Prism)</option>
+			<option value="oz">OZ</option>
+			<option value="parasail">ParaSail</option>
+			<option value="parigp">PARI/GP</option>
+			<option value="pascal">Pascal</option>
+			<option value="pcre">PCRE</option>
+			<option value="per">per</option>
+			<option value="perl">Perl</option>
+			<option value="perl6">Perl 6</option>
+			<option value="pf">OpenBSD Packet Filter</option>
+			<option value="php">PHP</option>
+			<option value="php-brief" class="sublang">&nbsp;&nbsp;PHP (brief)</option>
+			<option value="pic16">PIC16</option>
+			<option value="pike">Pike</option>
+			<option value="pixelbender">Pixel Bender 1.0</option>
+			<option value="pli">PL/I</option>
+			<option value="plsql">PL/SQL</option>
+			<option value="postgresql">PostgreSQL</option>
+			<option value="povray">POVRAY</option>
+			<option value="powerbuilder">PowerBuilder</option>
+			<option value="powershell">PowerShell</option>
+			<option value="proftpd">ProFTPd configuration</option>
+			<option value="progress">Progress</option>
+			<option value="prolog">Prolog</option>
+			<option value="properties">PROPERTIES</option>
+			<option value="providex">ProvideX</option>
+			<option value="purebasic">PureBasic</option>
+			<option value="pycon">Python (console mode)</option>
+			<option value="pys60">Python for S60</option>
+			<option value="python">Python</option>
+			<option value="q">q/kdb+</option>
+			<option value="qbasic">QBasic/QuickBASIC</option>
+			<option value="racket">Racket</option>
+			<option value="rails">Rails</option>
+			<option value="rbs">RBScript</option>
+			<option value="rebol">REBOL</option>
+			<option value="reg">Microsoft Registry</option>
+			<option value="rexx">rexx</option>
+			<option value="robots">robots.txt</option>
+			<option value="rpmspec">RPM Specification File</option>
+			<option value="rsplus">R / S+</option>
+			<option value="ruby">Ruby</option>
+			<option value="rust">Rust</option>
+			<option value="sas">SAS</option>
+			<option value="scala">Scala</option>
+			<option value="scheme">Scheme</option>
+			<option value="scilab">SciLab</option>
+			<option value="scl">SCL</option>
+			<option value="sdlbasic">sdlBasic</option>
+			<option value="smalltalk">Smalltalk</option>
+			<option value="smarty">Smarty</option>
+			<option value="spark">SPARK</option>
+			<option value="sparql">SPARQL</option>
+			<option value="sql">SQL</option>
+			<option value="stonescript">StoneScript</option>
+			<option value="systemverilog">SystemVerilog</option>
+			<option value="tcl">TCL</option>
+			<option value="teraterm">Tera Term Macro</option>
+			<option value="text">Text</option>
+			<option value="thinbasic">thinBasic</option>
+			<option value="tsql">T-SQL</option>
+			<option value="typoscript">TypoScript</option>
+			<option value="unicon">Unicon (Unified Extended Dialect of Icon)</option>
+			<option value="upc">UPC</option>
+			<option value="urbi">Urbi</option>
+			<option value="uscript">Unreal Script</option>
+			<option value="vala">Vala</option>
+			<option value="vb">Visual Basic</option>
+			<option value="vbnet">vb.net</option>
+			<option value="vbscript">VBScript</option>
+			<option value="vedit">Vedit macro language</option>
+			<option value="verilog">Verilog</option>
+			<option value="vhdl">VHDL</option>
+			<option value="vim">Vim Script</option>
+			<option value="visualfoxpro">Visual Fox Pro</option>
+			<option value="visualprolog">Visual Prolog</option>
+			<option value="whitespace">Whitespace</option>
+			<option value="whois">Whois (RPSL format)</option>
+			<option value="winbatch">Winbatch</option>
+			<option value="xbasic">XBasic</option>
+			<option value="xml">XML</option>
+			<option value="xorg_conf">Xorg configuration</option>
+			<option value="xpp">X++</option>
+			<option value="yaml">YAML</option>
+			<option value="z80">ZiLOG Z80 Assembler</option>
+			<option value="zxbasic">ZXBasic</option>
+		</select>
+		</div>';
+}
 
 if($requri == "pastes")
+{
+	if($bin->db->dbt == "mysql")
 	{
-		if($bin->db->dbt == "mysql")
-			{
-				echo "<h1>Pastes by " . urldecode($reqhash) . "</h1><br />";
-				echo "This is a temporary holding page for showing pastes by certain users.<br /><br />";
-				$userPastes = $bin->getLastPosts(200, urldecode($reqhash));
-				foreach($userPastes as $upaste)
-					echo "<a href=\"" . $bin->linker($upaste['ID']) . "\">" . $upaste['ID'] . "</a> ";
+		echo "<h1>Pastes by " . urldecode($reqhash) . "</h1><br />";
+		echo "This is a temporary holding page for showing pastes by "
+			. "certain users.<br /><br />";
+		$userPastes = $bin->getLastPosts(200, urldecode($reqhash));
 
-				die();
-			}
+		foreach($userPastes as $upaste)
+			echo "<a href=\"" . $bin->linker($upaste['ID']) . "\">" 
+			. $upaste['ID'] . "</a> ";
 
-		else
-			die('This feature is not enabled on this pastebin...');
-	}
+		die();
+	} else
+		die('This feature is not enabled on this pastebin...');
+}
 
 if($requri == "defaults")
+{
+	if($reqhash == "moo")
 	{
+		$ee_image = ""
+		. "\x89\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\x52" 
+		. "\x00\x00\x00\x10\x00\x00\x00\x12\x08\x06\x00\x00\x00\x52\x3b\x5e" 
+		. "\x6a\x00\x00\x00\x01\x73\x52\x47\x42\x00\xae\xce\x1c\xe9\x00\x00" 
+		. "\x00\x06\x62\x4b\x47\x44\x00\xff\x00\xff\x00\xff\xa0\xbd\xa7\x93" 
+		. "\x00\x00\x00\x09\x70\x48\x59\x73\x00\x00\x20\x88\x00\x00\x20\x88" 
+		. "\x01\x1c\x2c\xed\x2e\x00\x00\x00\x07\x74\x49\x4d\x45\x07\xdb\x04" 
+		. "\x1c\x12\x1f\x15\xe4\x47\x95\xc0\x00\x00\x03\xc3\x49\x44\x41\x54" 
+		. "\x38\xcb\x4d\x54\x4d\x48\x63\x67\x14\x3d\x9f\x2f\x2f\x26\xf1\x2f" 
+		. "\xf1\x07\x5b\x62\xd3\xf8\x43\x8c\x71\x30\x15\xac\x35\x45\xa1\xd8" 
+		. "\xa6\x32\x0a\x96\x41\x44\x2c\x15\x05\xa9\xff\x53\x28\x83\x82\xab" 
+		. "\xa2\xbb\x81\x52\x5d\x29\xf8\x0b\x53\x43\xa4\x31\x2d\x6a\x22\x0a" 
+		. "\x62\x90\x52\x44\x5c\x59\x29\x28\xb6\x82\x4e\x63\x47\x7d\x36\x9a" 
+		. "\x4c\x92\xa7\xc9\x7b\xb7\xab\x58\xcf\xea\x2e\xce\xb9\xdc\x7b\x0e" 
+		. "\xf7\x02\xff\xa3\x28\x2f\x2f\x6f\x1d\xc0\x27\xfd\xfd\xfd\xe3\x8b" 
+		. "\x8b\x8b\x7f\x79\x3c\x9e\xfb\x8d\x8d\x8d\xd8\xe8\xe8\xe8\x59\x51" 
+		. "\x51\xd1\x1c\x80\x4f\xf5\x7a\xbd\x17\x40\xd9\x83\xaa\xaf\xaf\xef" 
+		. "\xa1\x36\x18\x0c\x54\x52\x52\x42\x8f\x21\x49\x12\x39\x9d\x4e\xb2" 
+		. "\xdb\xed\x64\x36\x9b\xc9\x68\x34\x52\x82\x4f\x44\x50\x4c\x4c\x4c" 
+		. "\xa0\xa2\xa2\x62\xb0\xb7\xb7\xf7\xa5\x46\xa3\x81\x5a\xad\x26\x00" 
+		. "\x2c\xc1\x69\x69\x69\x61\x91\x48\x04\xa9\xa9\xa9\xa4\x56\xab\x31" 
+		. "\x3c\x3c\xcc\x00\xd0\xd2\xd2\xd2\x0f\x8c\xb1\x17\xec\xe9\xd3\xa7" 
+		. "\xbf\xae\xad\xad\x55\xdf\xdf\xdf\x43\xa9\x54\x12\x00\xb8\x5c\x2e" 
+		. "\x26\x8a\x22\xea\xeb\xeb\x69\x6c\x6c\x8c\x1d\x1e\x1e\x02\x00\x5d" 
+		. "\x5d\x5d\xb1\xed\xed\x6d\x8a\xc5\x62\xe0\x79\x9e\x75\x77\x77\xbf" 
+		. "\x46\x56\x56\xd6\x3b\x00\xbe\x1b\x19\x19\x21\x22\x22\xb7\xdb\x2d" 
+		. "\xdf\xdd\xdd\x11\x11\x91\xc3\xe1\x90\x27\x27\x27\x13\xdb\xc8\x53" 
+		. "\x53\x53\x44\x44\xf2\xcc\xcc\x0c\x01\x98\xe2\x79\xfe\xbd\xa4\xeb" 
+		. "\xeb\xeb\x37\x0b\x0b\x0b\xcf\x2d\x16\x0b\x00\x50\x28\x14\x82\x52" 
+		. "\xa9\x24\xbd\x5e\x4f\x99\x99\x99\x88\x44\x22\x64\xb5\x5a\x09\x00" 
+		. "\x22\x91\x08\x01\x40\x61\x61\x21\x5a\x5b\x5b\xbf\x8e\xc5\x62\xaf" 
+		. "\x39\x9d\x4e\xf7\xa5\xc3\xe1\xf8\x6a\x77\x77\x97\xca\xcb\xcb\x59" 
+		. "\x41\x41\x01\x66\x66\x66\x58\x57\x57\x17\xe3\x38\x0e\x55\x55\x55" 
+		. "\xcc\x6c\x36\xb3\xbd\xbd\x3d\xd4\xd5\xd5\x31\xad\x56\x0b\x9f\xcf" 
+		. "\x87\x93\x93\x13\x26\x08\x02\x43\x6d\x6d\xed\x4a\x2c\x16\xa3\xe9" 
+		. "\xe9\xe9\x87\x51\x1f\x85\x20\x3f\x4a\x43\x26\x22\x8a\x46\xa3\x72" 
+		. "\x5b\x5b\x1b\x11\x11\x4d\x4e\x4e\xfe\xa1\x08\x04\x02\x1f\x0c\x0e" 
+		. "\x0e\xa2\xa3\xa3\x03\x5e\xaf\x17\x0d\x0d\x0d\x0c\x00\x5e\xcd\xce" 
+		. "\x23\x25\x2c\xb1\xa4\x24\x0e\xff\xc4\x42\xe8\xfb\xf6\x1b\x16\x8f" 
+		. "\xc7\xe1\x72\xb9\x98\xd9\x6c\x06\x00\xe2\x38\xce\xa2\xe0\x79\x3e" 
+		. "\x5d\x10\x04\x58\xad\x56\x38\x9d\x4e\xa4\xa7\xa5\x21\x74\x1b\x44" 
+		. "\xcd\xbb\xc5\x98\x70\x2f\xe0\xc3\x27\x56\x54\x1b\x4a\x30\xfe\xf2" 
+		. "\x7b\x14\x97\x95\x62\x6b\x6b\x0b\xf3\xf3\xf3\x00\xc0\xf6\xf6\xf6" 
+		. "\x88\x33\x18\x0c\x3d\xe1\x70\x58\xab\xd5\x6a\x31\x30\x30\x40\x73" 
+		. "\x73\x73\xf8\x65\xd1\x85\xf6\x2f\x9a\x99\x2e\x23\x83\x32\x33\xb4" 
+		. "\x20\x99\xe0\x70\xff\x84\xab\x60\x00\xf5\xf5\xf5\x70\x38\x1c\xcc" 
+		. "\xed\x76\xd3\xfa\xfa\x3a\x63\x3d\x3d\x3d\x3f\x9b\x4c\xa6\x67\x5e" 
+		. "\xaf\x17\x9b\x9b\x9b\xf0\xfb\xfd\x54\x5d\x53\xc3\xd2\x93\xd5\xb0" 
+		. "\x7f\x54\x43\xc9\xca\x64\x76\xfa\xef\x1b\x54\x54\xdb\xa8\xb3\xb3" 
+		. "\x93\xcd\xce\xce\x92\xcf\xe7\x63\x82\x20\xe0\xe2\xe2\x62\x1f\x00" 
+		. "\x9e\xf9\x7c\x3e\x0a\x06\x83\x09\xc3\xe4\x9b\x9b\x1b\x1a\x1a\x1a" 
+		. "\x22\x4b\x69\xa9\x6c\x79\x52\x4a\xc7\xc7\x7f\x52\x34\x1a\x95\x89" 
+		. "\x88\x2e\x2f\x2f\xe5\xb2\xb2\x32\xb9\xb2\xb2\x92\x74\x3a\xdd\x30" 
+		. "\x07\xe0\x90\x88\x9e\x67\x67\x67\x6b\xf4\x7a\x3d\x29\x14\x0a\xa8" 
+		. "\x54\x2a\xd8\xed\x76\x76\x76\x7a\x8a\xb7\xa1\xb7\x38\x38\xf8\x1d" 
+		. "\x4d\x4d\x4d\x00\x80\x83\x83\x03\xac\xae\xae\xb2\x70\x38\x0c\xbf" 
+		. "\xdf\xff\x19\x07\x00\xfb\xfb\xfb\x3f\x9a\x4c\xa6\x17\xd1\x68\x94" 
+		. "\x05\x83\x41\xa4\xa4\xa4\x40\xa5\x52\x31\x9b\xcd\x86\xe3\xe3\x63" 
+		. "\xb4\xb7\xb7\xe3\xf6\xf6\x16\x3b\x3b\x3b\x00\x00\x8f\xc7\xc3\x8e" 
+		. "\x8e\x8e\x3e\x06\xf0\x37\x94\x4a\x65\xe2\xb8\x4c\x2d\x2d\x2d\x54" 
+		. "\x5c\x5c\x4c\xb9\xb9\xb9\x64\xb3\xd9\x68\x79\x79\x59\xde\xd8\xd8" 
+		. "\xa0\xe6\xe6\x66\x32\x1a\x8d\x72\x7e\x7e\x3e\x35\x36\x36\x92\x46" 
+		. "\xa3\xf9\x1c\x00\x14\x0a\x05\x38\x49\x92\x12\x0d\xee\x25\x49\x1a" 
+		. "\x16\x45\x11\x39\x39\x39\x88\xc7\xe3\x74\x7e\x7e\xce\x34\x1a\x0d" 
+		. "\x56\x56\x56\x48\xa7\xd3\x31\x41\x10\xc0\x18\xc3\xd9\xd9\xd9\x2b" 
+		. "\x00\x27\xb2\x2c\x23\xe9\xd1\x43\x79\x9f\xe3\x38\x04\x02\x01\x92" 
+		. "\x65\x19\x92\x24\xb1\xad\xad\xad\xdf\x46\x47\x47\xc7\x79\x9e\x67" 
+		. "\x92\x24\x91\x28\x8a\x10\x45\x11\x69\x69\x69\x85\x09\xd1\x7f\x88" 
+		. "\xc0\x07\x0e\x24\x81\x53\x98\x00\x00\x00\x00\x49\x45\x4e\x44\xae" 
+		. "\x42\x60\x82";
 
-		if($reqhash == "moo")
-			{
-				$ee_image = 	"\x89\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\x52" .
-						"\x00\x00\x00\x10\x00\x00\x00\x12\x08\x06\x00\x00\x00\x52\x3b\x5e" .
-						"\x6a\x00\x00\x00\x01\x73\x52\x47\x42\x00\xae\xce\x1c\xe9\x00\x00" .
-						"\x00\x06\x62\x4b\x47\x44\x00\xff\x00\xff\x00\xff\xa0\xbd\xa7\x93" .
-						"\x00\x00\x00\x09\x70\x48\x59\x73\x00\x00\x20\x88\x00\x00\x20\x88" .
-						"\x01\x1c\x2c\xed\x2e\x00\x00\x00\x07\x74\x49\x4d\x45\x07\xdb\x04" .
-						"\x1c\x12\x1f\x15\xe4\x47\x95\xc0\x00\x00\x03\xc3\x49\x44\x41\x54" .
-						"\x38\xcb\x4d\x54\x4d\x48\x63\x67\x14\x3d\x9f\x2f\x2f\x26\xf1\x2f" .
-						"\xf1\x07\x5b\x62\xd3\xf8\x43\x8c\x71\x30\x15\xac\x35\x45\xa1\xd8" .
-						"\xa6\x32\x0a\x96\x41\x44\x2c\x15\x05\xa9\xff\x53\x28\x83\x82\xab" .
-						"\xa2\xbb\x81\x52\x5d\x29\xf8\x0b\x53\x43\xa4\x31\x2d\x6a\x22\x0a" .
-						"\x62\x90\x52\x44\x5c\x59\x29\x28\xb6\x82\x4e\x63\x47\x7d\x36\x9a" .
-						"\x4c\x92\xa7\xc9\x7b\xb7\xab\x58\xcf\xea\x2e\xce\xb9\xdc\x7b\x0e" .
-						"\xf7\x02\xff\xa3\x28\x2f\x2f\x6f\x1d\xc0\x27\xfd\xfd\xfd\xe3\x8b" .
-						"\x8b\x8b\x7f\x79\x3c\x9e\xfb\x8d\x8d\x8d\xd8\xe8\xe8\xe8\x59\x51" .
-						"\x51\xd1\x1c\x80\x4f\xf5\x7a\xbd\x17\x40\xd9\x83\xaa\xaf\xaf\xef" .
-						"\xa1\x36\x18\x0c\x54\x52\x52\x42\x8f\x21\x49\x12\x39\x9d\x4e\xb2" .
-						"\xdb\xed\x64\x36\x9b\xc9\x68\x34\x52\x82\x4f\x44\x50\x4c\x4c\x4c" .
-						"\xa0\xa2\xa2\x62\xb0\xb7\xb7\xf7\xa5\x46\xa3\x81\x5a\xad\x26\x00" .
-						"\x2c\xc1\x69\x69\x69\x61\x91\x48\x04\xa9\xa9\xa9\xa4\x56\xab\x31" .
-						"\x3c\x3c\xcc\x00\xd0\xd2\xd2\xd2\x0f\x8c\xb1\x17\xec\xe9\xd3\xa7" .
-						"\xbf\xae\xad\xad\x55\xdf\xdf\xdf\x43\xa9\x54\x12\x00\xb8\x5c\x2e" .
-						"\x26\x8a\x22\xea\xeb\xeb\x69\x6c\x6c\x8c\x1d\x1e\x1e\x02\x00\x5d" .
-						"\x5d\x5d\xb1\xed\xed\x6d\x8a\xc5\x62\xe0\x79\x9e\x75\x77\x77\xbf" .
-						"\x46\x56\x56\xd6\x3b\x00\xbe\x1b\x19\x19\x21\x22\x22\xb7\xdb\x2d" .
-						"\xdf\xdd\xdd\x11\x11\x91\xc3\xe1\x90\x27\x27\x27\x13\xdb\xc8\x53" .
-						"\x53\x53\x44\x44\xf2\xcc\xcc\x0c\x01\x98\xe2\x79\xfe\xbd\xa4\xeb" .
-						"\xeb\xeb\x37\x0b\x0b\x0b\xcf\x2d\x16\x0b\x00\x50\x28\x14\x82\x52" .
-						"\xa9\x24\xbd\x5e\x4f\x99\x99\x99\x88\x44\x22\x64\xb5\x5a\x09\x00" .
-						"\x22\x91\x08\x01\x40\x61\x61\x21\x5a\x5b\x5b\xbf\x8e\xc5\x62\xaf" .
-						"\x39\x9d\x4e\xf7\xa5\xc3\xe1\xf8\x6a\x77\x77\x97\xca\xcb\xcb\x59" .
-						"\x41\x41\x01\x66\x66\x66\x58\x57\x57\x17\xe3\x38\x0e\x55\x55\x55" .
-						"\xcc\x6c\x36\xb3\xbd\xbd\x3d\xd4\xd5\xd5\x31\xad\x56\x0b\x9f\xcf" .
-						"\x87\x93\x93\x13\x26\x08\x02\x43\x6d\x6d\xed\x4a\x2c\x16\xa3\xe9" .
-						"\xe9\xe9\x87\x51\x1f\x85\x20\x3f\x4a\x43\x26\x22\x8a\x46\xa3\x72" .
-						"\x5b\x5b\x1b\x11\x11\x4d\x4e\x4e\xfe\xa1\x08\x04\x02\x1f\x0c\x0e" .
-						"\x0e\xa2\xa3\xa3\x03\x5e\xaf\x17\x0d\x0d\x0d\x0c\x00\x5e\xcd\xce" .
-						"\x23\x25\x2c\xb1\xa4\x24\x0e\xff\xc4\x42\xe8\xfb\xf6\x1b\x16\x8f" .
-						"\xc7\xe1\x72\xb9\x98\xd9\x6c\x06\x00\xe2\x38\xce\xa2\xe0\x79\x3e" .
-						"\x5d\x10\x04\x58\xad\x56\x38\x9d\x4e\xa4\xa7\xa5\x21\x74\x1b\x44" .
-						"\xcd\xbb\xc5\x98\x70\x2f\xe0\xc3\x27\x56\x54\x1b\x4a\x30\xfe\xf2" .
-						"\x7b\x14\x97\x95\x62\x6b\x6b\x0b\xf3\xf3\xf3\x00\xc0\xf6\xf6\xf6" .
-						"\x88\x33\x18\x0c\x3d\xe1\x70\x58\xab\xd5\x6a\x31\x30\x30\x40\x73" .
-						"\x73\x73\xf8\x65\xd1\x85\xf6\x2f\x9a\x99\x2e\x23\x83\x32\x33\xb4" .
-						"\x20\x99\xe0\x70\xff\x84\xab\x60\x00\xf5\xf5\xf5\x70\x38\x1c\xcc" .
-						"\xed\x76\xd3\xfa\xfa\x3a\x63\x3d\x3d\x3d\x3f\x9b\x4c\xa6\x67\x5e" .
-						"\xaf\x17\x9b\x9b\x9b\xf0\xfb\xfd\x54\x5d\x53\xc3\xd2\x93\xd5\xb0" .
-						"\x7f\x54\x43\xc9\xca\x64\x76\xfa\xef\x1b\x54\x54\xdb\xa8\xb3\xb3" .
-						"\x93\xcd\xce\xce\x92\xcf\xe7\x63\x82\x20\xe0\xe2\xe2\x62\x1f\x00" .
-						"\x9e\xf9\x7c\x3e\x0a\x06\x83\x09\xc3\xe4\x9b\x9b\x1b\x1a\x1a\x1a" .
-						"\x22\x4b\x69\xa9\x6c\x79\x52\x4a\xc7\xc7\x7f\x52\x34\x1a\x95\x89" .
-						"\x88\x2e\x2f\x2f\xe5\xb2\xb2\x32\xb9\xb2\xb2\x92\x74\x3a\xdd\x30" .
-						"\x07\xe0\x90\x88\x9e\x67\x67\x67\x6b\xf4\x7a\x3d\x29\x14\x0a\xa8" .
-						"\x54\x2a\xd8\xed\x76\x76\x76\x7a\x8a\xb7\xa1\xb7\x38\x38\xf8\x1d" .
-						"\x4d\x4d\x4d\x00\x80\x83\x83\x03\xac\xae\xae\xb2\x70\x38\x0c\xbf" .
-						"\xdf\xff\x19\x07\x00\xfb\xfb\xfb\x3f\x9a\x4c\xa6\x17\xd1\x68\x94" .
-						"\x05\x83\x41\xa4\xa4\xa4\x40\xa5\x52\x31\x9b\xcd\x86\xe3\xe3\x63" .
-						"\xb4\xb7\xb7\xe3\xf6\xf6\x16\x3b\x3b\x3b\x00\x00\x8f\xc7\xc3\x8e" .
-						"\x8e\x8e\x3e\x06\xf0\x37\x94\x4a\x65\xe2\xb8\x4c\x2d\x2d\x2d\x54" .
-						"\x5c\x5c\x4c\xb9\xb9\xb9\x64\xb3\xd9\x68\x79\x79\x59\xde\xd8\xd8" .
-						"\xa0\xe6\xe6\x66\x32\x1a\x8d\x72\x7e\x7e\x3e\x35\x36\x36\x92\x46" .
-						"\xa3\xf9\x1c\x00\x14\x0a\x05\x38\x49\x92\x12\x0d\xee\x25\x49\x1a" .
-						"\x16\x45\x11\x39\x39\x39\x88\xc7\xe3\x74\x7e\x7e\xce\x34\x1a\x0d" .
-						"\x56\x56\x56\x48\xa7\xd3\x31\x41\x10\xc0\x18\xc3\xd9\xd9\xd9\x2b" .
-						"\x00\x27\xb2\x2c\x23\xe9\xd1\x43\x79\x9f\xe3\x38\x04\x02\x01\x92" .
-						"\x65\x19\x92\x24\xb1\xad\xad\xad\xdf\x46\x47\x47\xc7\x79\x9e\x67" .
-						"\x92\x24\x91\x28\x8a\x10\x45\x11\x69\x69\x69\x85\x09\xd1\x7f\x88" .
-						"\xc0\x07\x0e\x24\x81\x53\x98\x00\x00\x00\x00\x49\x45\x4e\x44\xae" .
-						"\x42\x60\x82";
-
-						header("Pragma: public"); // required
-						header("Cache-Control: private", false); // required for certain browsers
-						header("Content-Type: image/png");
-						echo $ee_image;
-						die();
-			}
-
-		if(strstr($reqhash, "callback"))
-			$callback = array(str_replace("callback=", null, $reqhash) . '(', ')');
-
-		if($CONFIG['pb_editing'])
-			$defaults['editing'] = 1;
-		else
-			$defaults['editing'] = 0;
-
-		if($CONFIG['pb_api'])
-			$defaults['api'] = '"' . $bin->linker('api') . '"';
-		else
-			$defaults['api'] = 0;
-
-		if($CONFIG['pb_encrypt_pastes'])
-			$defaults['passwords'] = 1;
-		else
-			$defaults['passwords'] = 0;
-
-		if($bin->adaptor() && $CONFIG['pb_api'])
-			$defaults['api_adaptor'] = '"' . $bin->linker() . $CONFIG['pb_api_adaptor'] . '"';
-		else
-			$defaults['api_adaptor'] = 0;
-
-		if($bin->_clipboard())
-			$defaults['clipboard'] = '"' . $CONFIG['pb_clipboard'] . '"';
-		else
-			$defaults['clipboard'] = 0;
-
-		if($CONFIG['pb_images'])
-			$defaults['images'] = $CONFIG['pb_image_maxsize'];
-		else
-			$defaults['images'] = 0;
-
-		if($CONFIG['pb_download_images'] && $CONFIG['pb_images']) 
-			$defaults['image_download'] = 1;
-		else
-			$defaults['image_download'] = 0;
-
-		if($CONFIG['pb_url'])
-			$defaults['url'] = 1;
-		else
-			$defaults['url'] = 0;
-
-		if($bin->jQuery())
-			$defaults['ajax'] = 1;
-		else
-			$defaults['ajax'] = 0;
-
-		if($bin->highlight())
-			$defaults['syntax'] = 1;
-		else
-			$defaults['syntax'] = 0;
-
-		if($bin->lineHighlight())
-			$defaults['highlight'] = '"' . $bin->lineHighlight() . '"';
-		else
-			$defaults['highlight'] = 0; 
-
-		if($CONFIG['pb_private'])
-			$defaults['privacy'] = 1;
-		else
-			$defaults['privacy'] = 0;
-
-		if($CONFIG['pb_lifespan'])
-			{
-				$defaults['lifespan'] = "{\n";
-
-				foreach($CONFIG['pb_lifespan'] as $span)
-					{
-						$key = array_keys($CONFIG['pb_lifespan'], $span);
-						$key = $key[0];
-						$defaults['lifespan'] .= '									"' . $key . '":		"' . $bin->event(time() - ($span * 24 * 60 * 60), TRUE) . '"' . ",\n";
-					}
-
-				$selecter = '/"0 seconds"/';
-				$replacer = '"Never"';
-				$defaults['lifespan'] = preg_replace($selecter, $replacer, $defaults['lifespan'], 1);
-
-				$defaults['lifespan'] = substr($defaults['lifespan'], 0, -2) . "\n";
-
-				$defaults['lifespan'] .= "								}";
-			} else
-				$defaults['lifespan'] = '{ "0": "Never" }';
-
-		$defaults['ex_ext'] = '"' . implode(", ", $CONFIG['pb_image_extensions']) . '"';
-
-		$defaults['ex_url'] = '"' . $bin->linker('[id]') . '"';
-
-		$defaults['title'] = '"' . $bin->setTitle($CONFIG['pb_name']) . '"';
-
-		$defaults['max_paste_size'] = $CONFIG['pb_max_bytes'];
-
-		$defaults['author'] = '"' . $db->dirtyHTML($CONFIG['pb_author']) . '"';
-
-
-		$JSON = $callback[0] . '
-				{
-					"name":			' . $defaults['title'] . ',
-					"url":			"' . $bin->linker() . '",
-					"author":		' . $defaults['author'] . ',
-					"text": 		1,
-					"max_paste_size":	' . $defaults['max_paste_size'] . ',
-					"editing": 		' . $defaults['editing'] . ',
-					"passwords":		' . $defaults['passwords'] . ',
-					"api":			' . $defaults['api'] . ',
-					"api_adaptor":		' . $defaults['api_adaptor'] . ',
-					"clipboard":		' . $defaults['clipboard'] . ',
-					"images":		' . $defaults['images'] . ',
-					"image_extensions":	' . $defaults['ex_ext'] . ',
-					"image_download":	' . $defaults['image_download'] . ',
-					"url_redirection":	' . $defaults['url']. ',
-					"jQuery":		' . $defaults['ajax'] . ',
-					"syntax":		' . $defaults['syntax'] . ',
-					"line_highlight":	' . $defaults['highlight'] . ',
-					"url_format":		' . $defaults['ex_url'] . ',
-					"lifespan":		' . $defaults['lifespan'] . ',
-					"privacy":		' . $defaults['privacy'] . '
-				
-			';
-
-		print_r($JSON);
-		die('	}' . $callback[1]);
+		header("Pragma: public"); // required
+		header("Cache-Control: private", false); // required certain browsers
+		header("Content-Type: image/png");
+		echo $ee_image;
+		die();
 	}
+
+	if(strstr($reqhash, "callback"))
+		$callback = array(str_replace("callback=", null, $reqhash) . '(', ')');
+
+	if($CONFIG['pb_editing'])
+		$defaults['editing'] = 1;
+	else
+		$defaults['editing'] = 0;
+
+	if($CONFIG['pb_api'])
+		$defaults['api'] = '"' . $bin->linker('api') . '"';
+	else
+		$defaults['api'] = 0;
+
+	if($CONFIG['pb_encrypt_pastes'])
+		$defaults['passwords'] = 1;
+	else
+		$defaults['passwords'] = 0;
+
+	if($bin->adaptor() && $CONFIG['pb_api'])
+		$defaults['api_adaptor'] = '"' . $bin->linker() 
+			. $CONFIG['pb_api_adaptor'] . '"';
+	else
+		$defaults['api_adaptor'] = 0;
+
+	if($bin->_clipboard())
+		$defaults['clipboard'] = '"' . $CONFIG['pb_clipboard'] . '"';
+	else
+		$defaults['clipboard'] = 0;
+
+	if($CONFIG['pb_images'])
+		$defaults['images'] = $CONFIG['pb_image_maxsize'];
+	else
+		$defaults['images'] = 0;
+
+	if($CONFIG['pb_download_images'] && $CONFIG['pb_images']) 
+		$defaults['image_download'] = 1;
+	else
+		$defaults['image_download'] = 0;
+
+	if($CONFIG['pb_url'])
+		$defaults['url'] = 1;
+	else
+		$defaults['url'] = 0;
+
+	if($bin->jQuery())
+		$defaults['ajax'] = 1;
+	else
+		$defaults['ajax'] = 0;
+
+	if($bin->highlight())
+		$defaults['syntax'] = 1;
+	else
+		$defaults['syntax'] = 0;
+
+	if($bin->lineHighlight())
+		$defaults['highlight'] = '"' . $bin->lineHighlight() . '"';
+	else
+		$defaults['highlight'] = 0; 
+
+	if($CONFIG['pb_private'])
+		$defaults['privacy'] = 1;
+	else
+		$defaults['privacy'] = 0;
+
+	if($CONFIG['pb_lifespan'])
+	{
+		$defaults['lifespan'] = "{ ";
+
+		foreach($CONFIG['pb_lifespan'] as $span)
+		{
+			$key = array_keys($CONFIG['pb_lifespan'], $span);
+			$key = $key[0];
+			$defaults['lifespan'] .= ' "' . $key . '": "' 
+				. $bin->event(time() - ($span * 24 * 60 * 60), TRUE) 
+				. '"' . ",\n";
+		}
+
+		$selecter = '/"0 seconds"/';
+		$replacer = '"Never"';
+		$defaults['lifespan'] = preg_replace($selecter, $replacer, 
+			$defaults['lifespan'], 1);
+
+		$defaults['lifespan'] = substr($defaults['lifespan'], 0, -2) . "\n";
+
+		$defaults['lifespan'] .= " }";
+	} else
+		$defaults['lifespan'] = '{ "0": "Never" }';
+
+	$defaults['ex_ext'] = '"' 
+		. implode(", ", $CONFIG['pb_image_extensions']) . '"';
+
+	$defaults['ex_url'] = '"' . $bin->linker('[id]') . '"';
+
+	$defaults['title'] = '"' . $bin->setTitle($CONFIG['pb_name']) . '"';
+
+	$defaults['max_paste_size'] = $CONFIG['pb_max_bytes'];
+
+	$defaults['author'] = '"' . $db->dirtyHTML($CONFIG['pb_author']) . '"';
+
+
+	$JSON = $callback[0] . '
+		{
+			"name": ' . $defaults['title'] . ',
+			"url": "' . $bin->linker() . '",
+			"author": ' . $defaults['author'] . ',
+			"text": 1,
+			"max_paste_size": ' . $defaults['max_paste_size'] . ',
+			"editing":  ' . $defaults['editing'] . ',
+			"passwords": ' . $defaults['passwords'] . ',
+			"api": ' . $defaults['api'] . ',
+			"api_adaptor": ' . $defaults['api_adaptor'] . ',
+			"clipboard": ' . $defaults['clipboard'] . ',
+			"images": ' . $defaults['images'] . ',
+			"image_extensions": ' . $defaults['ex_ext'] . ',
+			"image_download": ' . $defaults['image_download'] . ',
+			"url_redirection": ' . $defaults['url']. ',
+			"jQuery": ' . $defaults['ajax'] . ',
+			"syntax": ' . $defaults['syntax'] . ',
+			"line_highlight": ' . $defaults['highlight'] . ',
+			"url_format": ' . $defaults['ex_url'] . ',
+			"lifespan": ' . $defaults['lifespan'] . ',
+			"privacy": ' . $defaults['privacy'];
+
+	print_r($JSON);
+	die('	}' . $callback[1]);
+}
 
 if($requri == "api")
+{
+	$acceptTokens = $bin->token();
+
+	if(!$CONFIG['pb_api'] && !in_array($_POST['ajax_token'], $acceptTokens))
+		die('	{
+			"id": 0,
+			"url": "' . $bin->linker() . '",
+			"error": "E0x",
+			"message": "API Disabled!"
+			}');
+
+
+	$bin->cleanUp($CONFIG['pb_recent_posts']);
+
+	if(!isset($reqhash))
 	{
-		$acceptTokens = $bin->token();
+		if(@$_POST['email'] != "")
+			$result = array('error' => '"E01c"', 
+				'message' => "Spam protection activated.");
 
-		if(!$CONFIG['pb_api'] && !in_array($_POST['ajax_token'], $acceptTokens))
-			die('	{
-				"id":			0,
-				"url":			"' . $bin->linker() . '",
-				"error":		"E0x",
-				"message":		"API Disabled!"
-				}');
+		$pasteID = $bin->generateID();
+		$imageID = $pasteID;
 
+		if($CONFIG['pb_encrypt_pastes'] && @$_POST['encryption'])
+		{
+			$encryption = $bin->encrypt($CONFIG['pb_encryption_checkphrase'], 
+				$_POST['encryption']);
+			$imageID = md5($imageID . $bin->generateID()) . "_";
+		} else
+			$encryption = FALSE;
 
-		$bin->cleanUp($CONFIG['pb_recent_posts']);
-
-		if(!isset($reqhash))
-			{
-
-				if(@$_POST['email'] != "")
-					$result = array('error' => '"E01c"', 'message' => "Spam protection activated.");
-
-				$pasteID = $bin->generateID();
-				$imageID = $pasteID;
-
-				if($CONFIG['pb_encrypt_pastes'] && @$_POST['encryption'])
-					{
-						$encryption = $bin->encrypt($CONFIG['pb_encryption_checkphrase'], $_POST['encryption']);
-						$imageID = md5($imageID . $bin->generateID()) . "_";
-					}
-				else
-					$encryption = FALSE;
-
-				if(@$_POST['urlField'])
-					$postedURL = htmlspecialchars($_POST['urlField']);
-				elseif(preg_match('/^((ht|f)(tp|tps)|mailto|irc|skype|git|svn|cvs|aim|gtalk|feed):/', @$_POST['pasteEnter']) && count(explode("\n", $_POST['pasteEnter'])) < 2)
-					$postedURL = htmlspecialchars($_POST['pasteEnter']);
-				else
-					$postedURL = NULL;
-
-				$requri = @$_POST['parent'];
-
-				$imgHost = @$_POST['imageUrl'];
-
-				$_POST['pasteEnter'] = @$_POST['pasteEnter'];
-
-				$exclam = NULL;
-
-				if(!$_POST['lifespan'])
-					$_POST['lifespan'] = 0;
-
-				if($postedURL != NULL)
-					{
-						$_POST['pasteEnter'] = $postedURL;
-						$exclam = "!";
-						$postedURLInfo = pathinfo($postedURL);
-
-						if($CONFIG['pb_url'])
-							$_FILES['pasteImage'] = NULL;
-					}
-
-				$imageUpload = FALSE;
-				$uploadAttempt = FALSE;
-
-				if(strlen(@$_FILES['pasteImage']['name']) > 4 && $CONFIG['pb_images']) {
-					$imageUpload = $db->uploadFile($_FILES['pasteImage'], $imageID);
-					if($imageUpload != FALSE) {
-						$postedURL = NULL;
-					}
-					$uploadAttempt = TRUE;
-				}
-		
-				if(in_array(strtolower($postedURLInfo['extension']), $CONFIG['pb_image_extensions']) && $CONFIG['pb_images'] && $CONFIG['pb_download_images'] && !$imageUpload) {
-					$imageUpload = $db->downTheImg($postedURL, $imageID);
-					if($imageUpload != FALSE) {
-						$postedURL = NULL;
-						$exclam = NULL;
-					}
-					$uploadAttempt = TRUE;
-				}
-
-				if($imgHost)
-					{
-						$imgHostInfo = pathinfo($imgHost);
-						$_POST['pasteEnter'] = $imgHost;
-
-						if(in_array(strtolower($imgHostInfo['extension']), $CONFIG['pb_image_extensions']) && $CONFIG['pb_images'] && $CONFIG['pb_download_images']) {
-							$imageUpload = $db->downTheImg($imgHost, $imageID);
-							if($imageUpload != FALSE) {
-								$postedURL = NULL;
-								$exclam = NULL;
-							}
-							$uploadAttempt = TRUE;
-						}
-					}
-
-				if(!$imageUpload && !$uploadAttempt)
-					$imageUpload = TRUE;
-
-
-				if(@$_POST['pasteEnter'] == NULL && strlen(@$_FILES['pasteImage']['name']) > 4 && $CONFIG['pb_images'])
-					$_POST['pasteEnter'] = "Image file (" . $_FILES['pasteImage']['name'] . ") uploaded...";
-
-				if(!$CONFIG['pb_url'])
-					$exclam = NULL;
-
-				if(!$CONFIG['pb_url'])
-					$postedURL = NULL;
-
-				if($bin->highlight() && $_POST['highlighter'] != "plaintext" && $_POST['highlighter'] != NULL)
-					{
-						$geshi->set_language($_POST['highlighter']);
-						$geshi->set_source($bin->noHighlight(@$_POST['pasteEnter']));
-						$geshi->highlight_lines_extra($bin->highlightNumbers(@$_POST['pasteEnter']));
-						$geshiCode = $geshi->parse_code();
-						$geshiStyle = $geshi->get_stylesheet();
-					} else
-						{
-							$geshiCode = NULL;
-							$geshiStyle = NULL;
-						}
-		
-				$paste = array(
-					'ID' => $pasteID,
-					'Subdomain' => $bin->db->config['subdomain'],
-					'Author' => $bin->checkAuthor(@$_POST['author']),
-					'IP' => $_SERVER['REMOTE_ADDR'],
-					'Image' => $imageUpload,
-					'ImageTxt' => "Image file (" . @$_FILES['pasteImage']['name'] . ") uploaded...",
-					'URL' => $postedURL,
-					'Lifespan' => $_POST['lifespan'],
-					'Protect' => $_POST['privacy'],
-					'Encrypted' => $encryption,
-					'Syntax' => $_POST['highlighter'],
-					'Parent' => $requri,
-					'Content' => @$_POST['pasteEnter'],
-					'GeSHI' => $geshiCode,
-					'Style' => $geshiStyle
-				);
-
-				if($encryption)
-					{
-						$paste['Content'] = $bin->encrypt($paste['Content'], $_POST['encryption']);
-						if(strlen($paste['GeSHI']) > 1)
-							$paste['GeSHI'] = $bin->encrypt($paste['GeSHI'], $_POST['encryption']);
-						if(strlen($paste['Image']) > 1)
-							$paste['Image'] = $bin->encrypt($paste['Image'], $_POST['encryption']);
-					}
-		
-				if(@$_POST['pasteEnter'] == @$_POST['originalPaste'] && strlen($_POST['pasteEnter']) > 10)
-					{
-						$result = array('ID' => 0, 'error' => '"E01c"', 'message' => "Please don't just repost what has already been said!");
-						$JSON = '
-								{
-									"id":			' . $result['ID'] . ',
-									"url":			"' . $bin->linker($paste['ID']) . $exclam . '",
-									"error":		' . $result['error'] . ',
-									"message":		"' . $result['message'] . '"
-				
-							';
-
-						print_r($JSON);
-						die('	}');
-					}
-
-				if(strlen(@$_POST['pasteEnter']) > 10 && $imageUpload && mb_strlen($paste['Content']) <= $CONFIG['pb_max_bytes'] && $db->insertPaste($paste['ID'], $paste))
-					{ 
-						$result = array('ID' => '"' . $paste['ID'] . '"', 'error' => '0', 'message' => "Success!");
-					} else
-						{
-							if(strlen(@$_FILES['pasteImage']['name']) > 4 && $_SERVER['CONTENT_LENGTH'] > $CONFIG['pb_image_maxsize'] && $CONFIG['pb_images'])
-								$result = array('ID' => 0, 'error' => '"E02b"', 'message' => "File is too big.");
-							elseif(strlen(@$_FILES['pasteImage']['name']) > 4 && $CONFIG['pb_images'])
-								$result = array('ID' => 0, 'error' => '"E02a"', 'message' => "Invalid file format.");
-							elseif(strlen(@$_FILES['pasteImage']['name']) > 4 && !$CONFIG['pb_images'])
-								$result = array('ID' => 0, 'error' => '"E02d"', 'message' => "Image hosting disabled.");
-							else
-								$result = array('ID' => 0, 'error' => '"E01a"', 'message' => "Invalid POST request. Pasted text must be between 10 characters and " . $bin->humanReadableFilesize($CONFIG['pb_max_bytes']));
-						}
-
-
-				$JSON = '
-							{
-								"id":			' . $result['ID'] . ',
-								"url":			"' . $bin->linker($paste['ID']) . $exclam . '",
-								"error":		' . $result['error'] . ',
-								"message":		"' . $result['message'] . '"
-				
-							';
-
-				print_r($JSON);
-				die('	}');
-
-			} else {
-
-				if($reqhash == "recent")
-					{
-						$recentPosts = $bin->getLastPosts($CONFIG['pb_recent_posts']);
-						$JSON = '{ "recent": [';
-
-						if(count($recentPosts) > 0)
-							{
-								foreach($recentPosts as $paste)
-									$JSON .= '{ "id": "' . $paste['ID'] . '", "author": "' . $paste['Author'] . '", "datetime": ' . $paste['Datetime'] . ' }';
-
-							}
-
-						print_r($JSON);
-						die('] }');
-					}
-
-				if($pasted = $db->readPaste($reqhash))
-					{
-
-						if($db->dbt == "mysql")
-							$pasted = $pasted[0];
-						
-						if($pasted['Encrypted'] != NULL && !@$_POST['decrypt_phrase'])
-							{
-								$JSON = '
-									{
-										"id":			0,
-										"url":			"' . $bin->linker($reqhash) . '",
-										"author":		0,
-										"datetime": 		0,
-										"protection":		0,
-										"syntax": 		0,
-										"parent":		0,
-										"image":		0,
-										"image_text":		0,
-										"link":			0,
-										"lifespan":		0,
-										"data":			"Encrypted pastes cannot be sent over API!",
-										"data_html":		"' . $db->dirtyHTML("<!-- Encrypted pastes cannot be sent over API!  -->") . '",
-										"geshi":		0,
-										"style":		0
-					
-									';
-	
-								print_r($JSON);
-								die('	}');
-							}
-						else
-							$pasted['Encrypted'] = NULL;
-
-						if(strlen($pasted['Image']) > 3)
-							$pasted['Image_path'] = $bin->linker() . $db->setDataPath($pasted['Image']);
-
-						$JSON = '
-								{
-									"id":			"' . $pasted['ID'] . '",
-									"url":			"' . $bin->linker($pasted['ID']) . '",
-									"author":		"' . $pasted['Author'] . '",
-									"datetime": 		' . $pasted['Datetime'] . ',
-									"protection":		' . $pasted['Protection'] . ',
-									"syntax": 		"' . $pasted['Syntax'] . '",
-									"parent":		"' . $pasted['Parent'] . '",
-									"image":		"' . $pasted['Image_path'] . '",
-									"image_text":		"' . $pasted['ImageTxt'] . '",
-									"link":			"' . $pasted['URL'] . '",
-									"lifespan":		' . $pasted['Lifespan']. ',
-									"data":			"' . urlencode($db->dirtyHTML($pasted['Data'])) . '",
-									"geshi":		"' . urlencode($pasted['GeSHI']) . '",
-									"style":		"' . urlencode($pasted['Style']) . '"
-				
-							';
-
-						print_r($JSON);
-						die('	}');
-					} else
-						{
-							$JSON = '
-								{
-									"id":			0,
-									"url":			"' . $bin->linker($reqhash) . '",
-									"author":		0,
-									"datetime": 		0,
-									"protection":		0,
-									"syntax": 		0,
-									"parent":		0,
-									"image":		0,
-									"image_text":		0,
-									"link":			0,
-									"lifespan":		0,
-									"data":			"This paste has either expired or doesn\'t exist!",
-									"data_html":		"' . $db->dirtyHTML("<!-- This paste has either expired or doesn't exist!  -->") . '",
-									"geshi":		0,
-									"style":		0
-				
-							';
-
-							print_r($JSON);
-							die('	}');
-						}
-
-
-			}
-
-
-	}
-
-if($requri != "install" && $requri != NULL && $bin->checkIfRedir($requri) != false && substr($requri, -1) != "!" && !$_POST['adminProceed'])
-	{
-		header("Location: " . $bin->checkIfRedir($requri));
-		die("This is a URL/Mailto forward holding page!");
-	}
-
-if($requri != "install" && $requri != NULL && substr($requri, -1) != "!" && !$_POST['adminProceed'] && $reqhash == "raw")
-	{
-		if($pasted = $db->readPaste($requri))
-			{
-				if($db->dbt == "mysql")
-					$pasted = $pasted[0];
-
-				header("Content-Type: text/plain; charset=utf-8");
-				die($db->rawHTML($bin->noHighlight($pasted['Data'])));
-			}
+		if(@$_POST['urlField'])
+			$postedURL = htmlspecialchars($_POST['urlField']);
+		elseif(preg_match('/^((ht|f)(tp|tps)|mailto|irc|skype|'
+			. 'git|svn|cvs|aim|gtalk|feed):/', @$_POST['pasteEnter']) 
+			&& count(explode("\n", $_POST['pasteEnter'])) < 2)
+			$postedURL = htmlspecialchars($_POST['pasteEnter']);
 		else
-			die('There was an error!');
+			$postedURL = NULL;
+
+		$requri = @$_POST['parent'];
+
+		$imgHost = @$_POST['imageUrl'];
+
+		$_POST['pasteEnter'] = @$_POST['pasteEnter'];
+
+		$exclam = NULL;
+
+		if(!$_POST['lifespan'])
+			$_POST['lifespan'] = 0;
+
+		if($postedURL != NULL)
+		{
+			$_POST['pasteEnter'] = $postedURL;
+			$exclam = "!";
+			$postedURLInfo = pathinfo($postedURL);
+
+			if($CONFIG['pb_url'])
+				$_FILES['pasteImage'] = NULL;
+		}
+
+		$imageUpload = FALSE;
+		$uploadAttempt = FALSE;
+
+		if(strlen(@$_FILES['pasteImage']['name']) > 4 && $CONFIG['pb_images'])
+	  	{
+			$imageUpload = $db->uploadFile($_FILES['pasteImage'], $imageID);
+
+			if($imageUpload != FALSE) 
+				$postedURL = NULL;
+
+			$uploadAttempt = TRUE;
+		}
+		
+		if(in_array(strtolower($postedURLInfo['extension']), 
+			$CONFIG['pb_image_extensions']) && $CONFIG['pb_images'] 
+			&& $CONFIG['pb_download_images'] && !$imageUpload) 
+		{
+			$imageUpload = $db->downTheImg($postedURL, $imageID);
+
+			if($imageUpload != FALSE) 
+			{
+				$postedURL = NULL;
+				$exclam = NULL;
+			}
+
+			$uploadAttempt = TRUE;
+		}
+
+		if($imgHost)
+		{
+			$imgHostInfo = pathinfo($imgHost);
+			$_POST['pasteEnter'] = $imgHost;
+
+			if(in_array(strtolower($imgHostInfo['extension']), 
+				$CONFIG['pb_image_extensions']) && $CONFIG['pb_images'] 
+				&& $CONFIG['pb_download_images']) 
+			{
+				$imageUpload = $db->downTheImg($imgHost, $imageID);
+
+				if($imageUpload != FALSE) 
+				{
+					$postedURL = NULL;
+					$exclam = NULL;
+				}
+
+				$uploadAttempt = TRUE;
+			}
+		}
+
+		if(!$imageUpload && !$uploadAttempt)
+			$imageUpload = TRUE;
+
+
+		if(@$_POST['pasteEnter'] == NULL 
+			&& strlen(@$_FILES['pasteImage']['name']) > 4 
+			&& $CONFIG['pb_images'])
+			$_POST['pasteEnter'] = "Image file (" 
+				. $_FILES['pasteImage']['name'] . ") uploaded...";
+
+		if(!$CONFIG['pb_url'])
+			$exclam = NULL;
+
+		if(!$CONFIG['pb_url'])
+			$postedURL = NULL;
+
+		if($bin->highlight() && $_POST['highlighter'] != "plaintext" 
+			&& $_POST['highlighter'] != NULL)
+		{
+			$geshi->set_language($_POST['highlighter']);
+			$geshi->set_source($bin->noHighlight(@$_POST['pasteEnter']));
+			$geshi->highlight_lines_extra($bin->highlightNumbers(
+				@$_POST['pasteEnter']));
+			$geshiCode = $geshi->parse_code();
+			$geshiStyle = $geshi->get_stylesheet();
+		} else {
+			$geshiCode = NULL;
+			$geshiStyle = NULL;
+		}
+		
+		$paste = array(
+			'ID' => $pasteID,
+			'Subdomain' => $bin->db->config['subdomain'],
+			'Author' => $bin->checkAuthor(@$_POST['author']),
+			'IP' => $_SERVER['REMOTE_ADDR'],
+			'Image' => $imageUpload,
+			'ImageTxt' => "Image file (" 
+				. @$_FILES['pasteImage']['name'] . ") uploaded...",
+			'URL' => $postedURL,
+			'Lifespan' => $_POST['lifespan'],
+			'Protect' => $_POST['privacy'],
+			'Encrypted' => $encryption,
+			'Syntax' => $_POST['highlighter'],
+			'Parent' => $requri,
+			'Content' => @$_POST['pasteEnter'],
+			'GeSHI' => $geshiCode,
+			'Style' => $geshiStyle
+		);
+
+		if($encryption)
+		{
+			$paste['Content'] = $bin->encrypt($paste['Content'], 
+				$_POST['encryption']);
+
+			if(strlen($paste['GeSHI']) > 1)
+				$paste['GeSHI'] = $bin->encrypt($paste['GeSHI'], 
+					$_POST['encryption']);
+
+			if(strlen($paste['Image']) > 1)
+				$paste['Image'] = $bin->encrypt($paste['Image'], 
+					$_POST['encryption']);
+		}
+		
+		if(@$_POST['pasteEnter'] == @$_POST['originalPaste'] 
+			&& strlen($_POST['pasteEnter']) > 10)
+		{
+			$result = array('ID' => 0, 'error' => '"E01c"', 
+				'message' => 
+				"Please don't just repost what has already been said!");
+			$JSON = '{
+				"id": ' . $result['ID'] . ',
+				"url": "' . $bin->linker($paste['ID']) . $exclam . '",
+				"error": ' . $result['error'] . ',
+				"message": "' . $result['message'] . '"';
+
+			print_r($JSON);
+			die(' }');
+		}
+
+		if(strlen(@$_POST['pasteEnter']) > 10 && $imageUpload 
+			&& mb_strlen($paste['Content']) <= $CONFIG['pb_max_bytes'] 
+			&& $db->insertPaste($paste['ID'], $paste))
+			$result = array('ID' => '"' . $paste['ID'] . '"', 'error' => '0', 
+				'message' => "Success!");
+		else {
+			if(strlen(@$_FILES['pasteImage']['name']) > 4 
+				&& $_SERVER['CONTENT_LENGTH'] > $CONFIG['pb_image_maxsize'] 
+				&& $CONFIG['pb_images'])
+				$result = array('ID' => 0, 'error' => '"E02b"', 
+					'message' => "File is too big.");
+			elseif(strlen(@$_FILES['pasteImage']['name']) > 4 
+				&& $CONFIG['pb_images'])
+				$result = array('ID' => 0, 'error' => '"E02a"', 
+					'message' => "Invalid file format.");
+			elseif(strlen(@$_FILES['pasteImage']['name']) > 4 
+				&& !$CONFIG['pb_images'])
+				$result = array('ID' => 0, 'error' => '"E02d"', 
+					'message' => "Image hosting disabled.");
+			else
+				$result = array('ID' => 0, 'error' => '"E01a"', 
+					'message' => "Invalid POST request."
+					. " Pasted text must be between 10 characters and " 
+					. $bin->humanReadableFilesize($CONFIG['pb_max_bytes']));
+		}
+
+
+		$JSON = '{ 
+			"id": ' . $result['ID'] . ',
+			"url": "' . $bin->linker($paste['ID']) . $exclam . '",
+			"error": ' . $result['error'] . ',
+			"message": "' . $result['message'] . '"';
+
+		print_r($JSON);
+		die(' }');
+
+	} else {
+		if($reqhash == "recent")
+		{
+			$recentPosts = $bin->getLastPosts($CONFIG['pb_recent_posts']);
+			$JSON = '{ "recent": [';
+
+			if(count($recentPosts) > 0)
+			{
+				foreach($recentPosts as $paste)
+					$JSON .= '{ "id": "' . $paste['ID'] . '", "author": "' 
+						. $paste['Author'] . '", "datetime": ' 
+						. $paste['Datetime'] . ' }';
+			}
+
+			print_r($JSON);
+			die('] }');
+		}
+
+		if($pasted = $db->readPaste($reqhash))
+		{
+			if($db->dbt == "mysql")
+				$pasted = $pasted[0];
+						
+			if($pasted['Encrypted'] != NULL && !@$_POST['decrypt_phrase'])
+			{
+				$JSON = '{ 
+					"id": 0,
+					"url": "' . $bin->linker($reqhash) . '",
+					"author": 0,
+					"datetime": 0,
+					"protection": 0,
+					"syntax": 0,
+					"parent": 0,
+					"image": 0,
+					"image_text": 0,
+					"link": 0,
+					"lifespan": 0,
+					"data": "Encrypted pastes cannot be sent over API!",
+					"data_html": "' . $db->dirtyHTML("<!-- Encrypted pastes"
+						. " cannot be sent over API!  -->") . '",
+					"geshi": 0,
+					"style": 0';
+	
+				print_r($JSON);
+				die(' }');
+			} else
+				$pasted['Encrypted'] = NULL;
+
+			if(strlen($pasted['Image']) > 3)
+				$pasted['Image_path'] = $bin->linker() 
+					. $db->setDataPath($pasted['Image']);
+
+			$JSON = '{ 
+				"id": "' . $pasted['ID'] . '",
+				"url": "' . $bin->linker($pasted['ID']) . '",
+				"author": "' . $pasted['Author'] . '",
+				"datetime": ' . $pasted['Datetime'] . ',
+				"protection": ' . $pasted['Protection'] . ',
+				"syntax": "' . $pasted['Syntax'] . '",
+				"parent": "' . $pasted['Parent'] . '",
+				"image": "' . $pasted['Image_path'] . '",
+				"image_text": "' . $pasted['ImageTxt'] . '",
+				"link": "' . $pasted['URL'] . '",
+				"lifespan": ' . $pasted['Lifespan']. ',
+				"data": "' . urlencode($db->dirtyHTML($pasted['Data'])) . '",
+				"geshi": "' . urlencode($pasted['GeSHI']) . '",
+				"style": "' . urlencode($pasted['Style']) . '"';
+
+			print_r($JSON);
+			die(' }');
+		} else {
+			$JSON = '{ 
+				"id": 0,
+				"url": "' . $bin->linker($reqhash) . '",
+				"author": 0,
+				"datetime": 0,
+				"protection": 0,
+				"syntax": 0,
+				"parent": 0,
+				"image": 0,
+				"image_text": 0,
+				"link": 0,
+				"lifespan": 0,
+				"data": "This paste has either expired or doesn\'t exist!",
+				"data_html": "' . $db->dirtyHTML("<!-- This paste has either"
+					. " expired or doesn't exist!  -->") . '",
+				"geshi": 0,
+				"style": 0';
+
+			print_r($JSON);
+			die(' }');
+		}
 	}
+
+
+}
+
+if($requri != "install" && $requri != NULL 
+	&& $bin->checkIfRedir($requri) != false && substr($requri, -1) != "!" 
+	&& !$_POST['adminProceed'])
+{
+	header("Location: " . $bin->checkIfRedir($requri));
+	die("This is a URL/Mailto forward holding page!");
+}
+
+if($requri != "install" && $requri != NULL && substr($requri, -1) != "!" 
+	&& !$_POST['adminProceed'] && $reqhash == "raw")
+{
+	if($pasted = $db->readPaste($requri))
+	{
+		if($db->dbt == "mysql")
+			$pasted = $pasted[0];
+
+		if(strlen($pasted['Image']) > 3)
+			header("Location: " . $bin->linker() 
+				. $db->setDataPath($pasted['Image']));
+
+		header("Content-Type: text/plain; charset=utf-8");
+		die($db->rawHTML($bin->noHighlight($pasted['Data'])));
+	} else
+		die('There was an error!');
+}
+
+if($requri != "install" && $requri != NULL && substr($requri, -1) != "!" 
+	&& !$_POST['adminProceed'] && $reqhash == "download")
+{
+	if($pasted = $db->readPaste($requri))
+    {
+    	if($db->dbt == "mysql")
+			$pasted = $pasted[0];
+
+		if(strlen($pasted['Image']) > 3)
+		{
+			$imageServe = $db->setDataPath($pasted['Image']);
+			$imgFileInfo = pathinfo($imageServe);
+			if($imgFileInfo['extension'] == "jpg")
+				$imgFileInfo['extension'] = "jpeg";
+
+			header("Pragma: public");
+			header("Expires: 0");
+			header("Cache-Control: must-revalidate, post-check=0,"
+				. " pre-check=0");
+			header("Cache-Control: private", false);
+			header("Content-Type: image/" . $imgFileInfo['extension']);
+			header("Content-Disposition: attachment; filename=" . $requri 
+				. "." . str_replace("jpeg", "jpg", $imgFileInfo['extension']));
+			header("Content-Transfer-Encoding: binary");
+			header("Content-Length: " . filesize($imageServe));
+
+			readfile($imageServe);
+
+			die();	
+		}
+
+		header("Content-Type: text/plain; charset=utf-8");
+		header("Content-Disposition: attachment; filename=" 
+			. $requri . ".txt");
+		die($db->rawHTML($bin->noHighlight($pasted['Data'])));
+	} else
+		die('There was an error!');
+}
 
 $pasteinfo = array();
 if($requri != "install")
@@ -2132,8 +2581,7 @@ if($requri != "install")
 		<meta name="Description" content="A quick, simple, multi-purpose pastebin." />	
 		<meta name="Keywords" content="simple quick pastebin image hosting linking embedding url shortening syntax highlighting" />
 		<meta name="Robots" content="<?php echo $bin->robotPrivacy($requri); ?>" /> 
-		<meta name="Author" content="Xan Manning, Knoxious.co.uk" />
-
+		<meta name="Author" content="Xan Manning, xan-manning.co.uk" />
 
 		<?php
 			if($bin->styleSheet())
@@ -2145,7 +2593,7 @@ if($requri != "install")
 				h2 { font-size: 15px; }
 				a { color: #336699; }
 				img { border: none; }
-				pre { display: inline; font-family: inherit; } 
+				pre { display: inline; font-family: inherit; white-space: pre-wrap; } 
 				.success { background-color: #AAFFAA; border: 1px solid #00CC00; font-weight: bolder; text-align: center; padding: 2px; color: #000000; margin-top: 3px; margin-bottom: 3px; }
 				.warn { background-color: #FFFFAA; border: 1px solid #CCCC00; font-weight: bolder; text-align: center; padding: 2px; color: #000000; margin-top: 3px; margin-bottom: 3px; }
 				.error { background-color: #FFAAAA; border: 1px solid #CC0000; font-weight: bolder; text-align: center; padding: 2px; color: #000000; margin-top: 3px; margin-bottom: 3px; }
@@ -2162,7 +2610,7 @@ if($requri != "install")
 				.pasteEnterLabel { width: 80%; display: block; }
 				.resizehandle {	background: #F0F0F0 scroll 45%; cursor: s-resize; text-align: center; color: #AAAAAA; height: 16px; width: 100%; } 
 				#newPaste { text-align: center; border-bottom: 1px dotted #CCCCCC; padding-bottom: 10px; }
-				#lineNumbers { width: 100%; max-height: 500px; background-color: #FFFFFF; overflow: auto; padding: 0; margin: 0; }
+				#lineNumbers { width: 100%; background-color: #FFFFFF; overflow: auto; padding: 0; margin: 0; }
 				div#siteWrapper { width: 100%; margin: 0 auto; }
 				div#siteWrapper > #showAdminFunctions { max-width: 800px; margin: 25px; }
 				div#siteWrapper > #hiddenAdmin { max-width: 800px; margin: 25px; }
@@ -2244,9 +2692,6 @@ if($requri != "install")
 
 			/* begin JS */
 			
-			if($bin->flowplayer())
-				echo "<script src=\"" . $bin->flowplayer(TRUE) . "\" type=\"text/javascript\"></script>";
-
 			$_commonJS = "/* AJAXIAN */
 var tab = \"    \";
        
@@ -2322,42 +2767,6 @@ function showSubdomain(){
 	return false;
 }
 
-function toggleWrap() {
-	var n = 0;
-	var pres = document.getElementsByTagName('pre');
-
-	for(n in pres)
-		{
-			if(pres[n].style != null && (pres[n].style.whiteSpace == \"pre\" || pres[n].style.whiteSpace == \"\")) {
-					pres[n].style.whiteSpace = \"pre-wrap\";
-			}
-			else if(pres[n].style != null) {
-				pres[n].style.whiteSpace = \"pre\";
-			}
-		}
-
-	return false;
-}
-
-function toggleExpand() {
-	if(document.getElementById('lineNumbers').style.maxHeight != \"none\") {
-			document.getElementById('lineNumbers').style.maxHeight = \"none\";
-			document.getElementById('lineNumbers').style.width = \"auto\";
-	}
-	else {
-		document.getElementById('lineNumbers').setAttribute('style', '');
-	}
-	return false;
-}
-
-function toggleStyle(){
-	if(document.getElementById('orderedList').getAttribute('class') == \"monoText\" || document.getElementById('orderedList').getAttribute('class') == \"\")
-		document.getElementById('orderedList').setAttribute(\"class\", \"plainText\");
-	else
-		document.getElementById('orderedList').setAttribute(\"class\", \"monoText\");
-	return false;
-}
-
 function submitPaste(targetButton) {
 	var disabledButton = document.createElement('input');
 	var parentContainer = document.getElementById('submitContainer');
@@ -2371,7 +2780,8 @@ function submitPaste(targetButton) {
 }";
 
 			if($bin->jQuery())
-				{ echo "<script type=\"text/javascript\" src=\"" . $CONFIG['pb_jQuery'] . "\"></script>";
+			{ 
+				echo "<script type=\"text/javascript\" src=\"" . $CONFIG['pb_jQuery'] . "\"></script>";
 
 		?>
 			<script type="text/javascript">
@@ -2454,36 +2864,6 @@ function submitPaste(targetButton) {
 					return false;
 				}
 
-
-				function toggleWrap(){
-					if($('pre').css('white-space') == "pre")
-						$('pre').css({ whiteSpace: "pre-wrap"});
-					else 
-						$('pre').removeAttr('style').css({ whiteSpace: "pre" });
-
-					return false;
-				}
-
-				function toggleExpand(){
-					if($('#lineNumbers').css('maxHeight') != "none")
-						$('#lineNumbers').css({ maxHeight: "none", width: "auto" });
-					else
-						$('#lineNumbers').removeAttr('style');
-
-					return false;
-				}
-
-				function toggleStyle(){
-					if($('#orderedList').attr('class') == "monoText" || $('#orderedList').attr('class') == "") {
-						$('#orderedList').attr('class', 'plainText');
-						$('.alternate').attr('class', 'line');
-					}
-					else {
-						$('#orderedList').attr('class', 'monoText');
-						$('#orderedList li:nth-child(even)').addClass('alternate');
-					}
-					return false;
-				}
 
 				/* AJAXIAN */
 
@@ -2842,8 +3222,14 @@ elseif($requri != "install" && $db->connect())
 else
 	echo "<!-- No Check is required... -->";
 
-if(@$_POST['adminAction'] == "delete" && $bin->hasher(hash($CONFIG['pb_algo'], @$_POST['adminPass']), $CONFIG['pb_salts']) === $CONFIG['pb_pass'])
-	{ $db->dropPaste($requri); echo "<div class=\"success\">Paste, " . $requri . ", has been deleted!</div>"; $requri = NULL; }
+if(@$_POST['adminAction'] == "delete" && $bin->hasher(hash($CONFIG['pb_algo'], 
+	@$_POST['adminPass']), $CONFIG['pb_salts']) === $CONFIG['pb_pass'])
+{ 
+	$db->dropPaste($requri); 
+	echo "<div class=\"success\">Paste, " . $requri 
+		. ", has been deleted!</div>"; 
+	$requri = NULL; 
+}
 
 if(@$_POST['subdomain'] && $error_subdomain)
 	die("<div class=\"result\"><div class=\"error\">Subdomain invalid or already taken!</div></div></div></body></html>");
@@ -3134,10 +3520,7 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 				if(strlen($pasted['Parent']) > 0)
 					echo "<div class=\"warn\"><strong>This is an edit of</strong> <a href=\"" . $bin->linker($pasted['Parent']) . "\">" . $bin->linker($pasted['Parent']) . "</a></div>";
 
-				if(!$bin->highlight() || (!is_bool($pasted['Image']) && !is_numeric($pasted['Image'])) || $pasted['Syntax'] == "plaintext")
-					echo "<div id=\"styleBar\"><strong>Toggle</strong> <a href=\"#\" onclick=\"return toggleExpand();\">Expand</a> &nbsp;  <a href=\"#\" onclick=\"return toggleWrap();\">Wrap</a> &nbsp; <a href=\"#\" onclick=\"return toggleStyle();\">Style</a> &nbsp; <a href=\"" . $bin->linker($pasted['ID'] . '@raw') . "\">Raw</a></div>";
-				else
-					echo "<div id=\"styleBar\"><strong>Toggle</strong> <a href=\"#\" onclick=\"return toggleExpand();\">Expand</a> &nbsp;  <a href=\"#\" onclick=\"return toggleWrap();\">Wrap</a> &nbsp; <a href=\"" . $bin->linker($pasted['ID'] . '@raw') . "\">Raw</a></div>";
+				echo "<div id=\"styleBar\"><strong>Tools</strong> <a href=\"" . $bin->linker($pasted['ID'] . '@raw') . "\">Raw</a> &nbsp; <a href=\"" . $bin->linker($pasted['ID'] . '@download') . "\">Download</a></div>";
 
 				if($bin->_clipboard())
 					echo "<div class=\"_clipboardBar\"><span class=\"copyText\" id=\"_copyText\">Copy Contents</span> &nbsp; <span class=\"copyText\" id=\"_copyURL\">Copy URL</span></div>";

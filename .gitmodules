@@ -1,0 +1,3 @@
+[submodule "geshi-1.0"]
+	path = geshi-1.0
+	url = https://github.com/GeSHi/geshi-1.0.git
