@@ -13,7 +13,7 @@
  *	A quick to set up, rapid install, two-file pastebin! 
  *	(or at least can be)
  *
- *	Supports text and image hosting, url and video linking.
+ *	Supports text, image hosting and url linking.
  *
  *	URL: 		http://xan-manning.co.uk/
  *	EXAMPLE: 	http://pzt.me/
@@ -31,17 +31,21 @@ else
 
 /* Start Pastebin */
 if(substr(phpversion(), 0, 3) < 5.2)
-	die('PHP 5.2 is required to run this pastebin! This version is ' . phpversion() . '. Please contact your host!');
+	die('PHP 5.2 is required to run this pastebin! This version is ' 
+		. phpversion() . '. Please contact your host!');
 
 if($CONFIG['pb_encrypt_pastes'] == TRUE && !function_exists('mcrypt_encrypt'))
 	$CONFIG['pb_encrypt_pastes'] = FALSE;
 
 if(@$_POST['encryption'])
-	$_POST['encryption'] = md5(preg_replace("/[^a-zA-Z0-9\s]/", "i0", $_POST['encryption']));
+	$_POST['encryption'] = md5(preg_replace("/[^a-zA-Z0-9\s]/", "i0", 
+		$_POST['encryption']));
 
-if(@$_POST['decrypt_phrase']) {
+if(@$_POST['decrypt_phrase']) 
+{
 	$_temp_decrypt_phrase = $_POST['decrypt_phrase'];
-	$_POST['decrypt_phrase'] = md5(preg_replace("/[^a-zA-Z0-9\s]/", "i0", $_POST['decrypt_phrase']));
+	$_POST['decrypt_phrase'] = md5(preg_replace("/[^a-zA-Z0-9\s]/", "i0", 
+		$_POST['decrypt_phrase']));
 }
 
 if($CONFIG['pb_gzip'])
@@ -52,540 +56,617 @@ if($CONFIG['pb_infinity'])
 
 
 if($CONFIG['pb_infinity'] && $CONFIG['pb_infinity_default'])
-	$CONFIG['pb_lifespan'] = array_merge((array)$infinity, (array)$CONFIG['pb_lifespan']);
-
+	$CONFIG['pb_lifespan'] = array_merge((array)$infinity, 
+		(array)$CONFIG['pb_lifespan']);
 elseif($CONFIG['pb_infinity'] && !$CONFIG['pb_infinity_default'])
-	$CONFIG['pb_lifespan'] = array_merge((array)$CONFIG['pb_lifespan'], (array)$infinity);
+	$CONFIG['pb_lifespan'] = array_merge((array)$CONFIG['pb_lifespan'], 
+		(array)$infinity);
 
 
 if(get_magic_quotes_gpc())
+{
+	function callback_stripslashes(&$val, $name) 
 	{
-		function callback_stripslashes(&$val, $name) 
-			{
-				if(get_magic_quotes_gpc()) 
-		 			$val = stripslashes($val);
-			}
-
-		if(count($_GET))
-			array_walk($_GET, 'callback_stripslashes');
-		if(count($_POST))
-	 		array_walk($_POST, 'callback_stripslashes');
-	 	if(count($_COOKIE))
-	 		array_walk($_COOKIE, 'callback_stripslashes');
+		if(get_magic_quotes_gpc()) 
+ 			$val = stripslashes($val);
 	}
+
+	if(count($_GET))
+		array_walk($_GET, 'callback_stripslashes');
+
+	if(count($_POST))
+ 		array_walk($_POST, 'callback_stripslashes');
+
+ 	if(count($_COOKIE))
+ 		array_walk($_COOKIE, 'callback_stripslashes');
+
+}
 
 
 class db
+{
+	public function __construct($config)
 	{
-		public function __construct($config)
-			{
-				$this->config = $config;
-				$this->dbt = NULL;
-
-				switch($this->config['db_type'])
-					{
-						case "flatfile":
-							$this->dbt = "txt";
-						break;
-						case "mysql":
-							$this->dbt = "mysql";
-						break;
-						default:
-							$this->dbt = "txt";
-						break;
-					}
-			}
-
-		public function serializer($data)
-			{
-				$serialize = serialize($data);
-				$output = $serialize;
-				return $output;
-			}
-			
-		public function deserializer($data)
-			{
-				$unserialize = unserialize($data);
-				$output = $unserialize;
-				return $output;
-			}
-			
-		
-		public function read($file)
-			{
-				$open = fopen($file, "r");
-				$data = fread($open, filesize($file) + 1024);
-				fclose($open);
-				return $data;
-			}
-			
-		public function append($data, $file)
-			{
-				$open = fopen($file, "a");
-				$write = fwrite($open, $data);
-				fclose($open);
-				
-				return $write;
-			}
-			
-		public function write($data, $file)
-			{
-				$open = fopen($file, "w");
-				$write = fwrite($open, $data);
-				fclose($open);
-				
-				return $write;
-			}
-
-		public function array_remove(array &$a_Input, $m_SearchValue, $b_Strict = False)
-			{
-    				$a_Keys = array_keys($a_Input, $m_SearchValue, $b_Strict);
-    				foreach($a_Keys as $s_Key)
-					unset($a_Input[$s_Key]);
-
-    				return $a_Input;
-			}
-
-		public function setDataPath($filename = FALSE, $justPath = FALSE, $forceImage = FALSE)
-			{
-				if(!$filename && !$forceImage)
-					return $this->config['txt_config']['db_folder'];
-				
-				if(!$filename && $forceImage)
-					return $this->config['txt_config']['db_folder'] . "/" . $this->config['txt_config']['db_images'];
-
-				$filename = str_replace("!", "", $filename);
-
-				$this->config['max_folder_depth'] = (int)$this->config['max_folder_depth'];
-
-				if($this->config['max_folder_depth'] < 1 || !is_numeric($this->config['max_folder_depth']))
-					$this->config['max_folder_depth'] = 1;
-
-				$info = pathinfo($filename);
-				if(!in_array(strtolower($info['extension']), $this->config['pb_image_extensions']))
-					{
-						
-						$path = $this->config['txt_config']['db_folder'] . "/" . substr($filename, 0, 1);
-
-						if(!file_exists($path) && is_writable($this->config['txt_config']['db_folder']))
-							{
-								mkdir($path);
-								chmod($path, $this->config['txt_config']['dir_mode']);
-								$this->write("FORBIDDEN", $path . "/index.html");
-								chmod($path . "/index.html", $this->config['txt_config']['file_mode']);
-							}
-
-						for ($i = 1; $i <= $this->config['max_folder_depth'] - 1; $i++) {
-
-							$parent = $path;
-						   
-							if(strlen($filename) > $i)
-								$path .= "/" . substr($filename, $i, 1);
-
-							if(!file_exists($path) && is_writable($parent))
-								{
-									mkdir($path);
-									chmod($path, $this->config['txt_config']['dir_mode']);
-									$this->write("FORBIDDEN", $path . "/index.html");
-									chmod($path . "/index.html", $this->config['txt_config']['file_mode']);
-								}
-
-						}
-
-
-					} else
-						{
-							$path = $this->config['txt_config']['db_folder'] . "/" . $this->config['txt_config']['db_images'] . "/" . substr($info['filename'], 0, 1);
-							
-							if(!file_exists($path) && is_writable($this->config['txt_config']['db_folder'] . "/" . $this->config['txt_config']['db_images']))
-								{
-									mkdir($path);
-									chmod($path, $this->config['txt_config']['dir_mode']);
-									$this->write("FORBIDDEN", $path . "/index.html");
-									chmod($path . "/index.html", $this->config['txt_config']['file_mode']);
-								}
-
-
-							for ($i = 1; $i <= $this->config['max_folder_depth'] - 1; $i++) {
-
-								$parent = $path;
-							   
-								if(strlen($info['filename']) > $i)
-									$path .= "/" . substr($info['filename'], $i, 1);
-
-								if(!file_exists($path) && is_writable($parent))
-									{
-										mkdir($path);
-										chmod($path, $this->config['txt_config']['dir_mode']);
-										$this->write("FORBIDDEN", $path . "/index.html");
-										chmod($path . "/index.html", $this->config['txt_config']['file_mode']);
-									}
-
-							}
-
-						}
-
-				if($justPath)
-					return $path;
-				else
-					return $path . "/" . $filename;
-			}
-
-		public function connect()
-			{
-				switch($this->dbt)
-					{
-						case "mysql":
-							$this->link = mysql_connect($this->config['mysql_connection_config']['db_host'], $this->config['mysql_connection_config']['db_uname'], $this->config['mysql_connection_config']['db_pass']);
-							$result = mysql_select_db($this->config['mysql_connection_config']['db_name'], $this->link);
-								if($this->link == FALSE || $result == FALSE)
-									$output = FALSE;
-								else
-									$output = TRUE;
-						break;
-						case "txt":
-							if(!is_writeable($this->setDataPath() . "/" . $this->config['txt_config']['db_index']) || !is_writeable($this->setDataPath()))
-								$output = FALSE;
-							else
-								$output = TRUE;
-						break;
-					}
-
-				return $output;
-			}
-
-		public function disconnect()
-			{
-				switch($this->dbt)
-					{
-						case "mysql":
-							mysql_close();
-							$output = TRUE;
-						break;
-						case "txt":
-							$output = TRUE;
-						break;
-					}
-
-				return $output;
-			}
-
-		public function readPaste($id)
-			{
-				switch($this->dbt)
-					{
-						case "mysql":
-							$this->connect();
-							$query = "SELECT * FROM " . $this->config['mysql_connection_config']['db_table'] . " WHERE ID = '" . $id . "'";
-							$result = array();
-							$result_temp = mysql_query($query);
-							if(!$result_temp || mysql_num_rows($result_temp) < 1)
-								return false;
-
-							while ($row = mysql_fetch_assoc($result_temp))
-								$result[] = $row;
-
-							mysql_free_result($result_temp);
-						break;
-						case "txt":
-							$result = array();
-
-							if(!file_exists($this->setDataPath($id)))
-								{
-									$index = $this->deserializer($this->read($this->setDataPath() . "/" . $this->config['txt_config']['db_index']));
-									if(in_array($id, $index))
-										$this->dropPaste($id, TRUE);
-
-									return false;
-								}
-
-
-							$result = $this->deserializer($this->read($this->setDataPath($id)));
-
-						break;
-					}
-
-				if(count($result) < 1)
-					$result = FALSE;
-
-				return $result;
-			}
-
-		public function dropPaste($id, $ignoreImage = FALSE)
-			{
-
-				$id = (string)$id;
-
-				if(!$ignoreImage)
-					{
-						$imgTemp = $this->readPaste($id);
-
-						if($this->dbt == "mysql")
-							$imgTemp = $imgTemp[0];
-
-						if($imgTemp['Image'] != NULL && file_exists($this->setDataPath($imgTemp['Image'])))
-							unlink($this->setDataPath($imgTemp['Image']));
-					}
-
-				switch($this->dbt)
-					{
-						case "mysql":
-							$this->connect();
-							$query = "DELETE FROM " . $this->config['mysql_connection_config']['db_table'] . " WHERE ID = '" . $id . "'";
-							$result = mysql_query($query);
-						break;
-						case "txt":
-							if(file_exists($this->setDataPath($id)))
-								$result = unlink($this->setDataPath($id));
-
-							$index = $this->deserializer($this->read($this->setDataPath() . "/" . $this->config['txt_config']['db_index']));
-							if(in_array($id, $index))
-								{
-									$key = array_keys($index, $id);	
-								} elseif(in_array("!" . $id, $index))
-									{
-										$key = array_keys($index, "!" . $id);	
-									}
-							$key = $key[0];
-
-							if(isset($index[$key]))	
-								unset($index[$key]);
-
-							$index = array_values($index);
-							$result = $this->write($this->serializer($index), $this->setDataPath() . "/" . $this->config['txt_config']['db_index']);
-						break;
-					}
-
-				return $result;
-			}
-		
-		public function cleanHTML($input)
-			{
-				if($this->dbt == "mysql")
-					$output = addslashes(str_replace('\\', '\\\\', $input));
-				else
-					$output = addslashes($input);
-
-				return $output;
-			}
-
-		public function lessHTML($input)
-			{
-				$output = htmlspecialchars($input);
-				return $output;
-			}
-
-
-		public function dirtyHTML($input)
-			{
-				$output = htmlspecialchars(stripslashes($input));
-				return $output;
-			}
-
-		public function rawHTML($input)
-			{
-				if($this->dbt == "mysql")
-					$output = stripslashes($input);
-				else 
-					$output = stripslashes(stripslashes($input));
-
-				return $output;
-			}
-
-		public function uploadFile($file, $rename = FALSE)
-			{
-				$info = pathinfo($file['name']);
-
-				if(!$this->config['pb_images'])
-					return false;
-
-				if($rename)
-					$path = $this->setDataPath($rename . "." . strtolower($info['extension'])); 
-				else
-					$path = $path = $this->setDataPath($file['name']);
-
-				if(!in_array(strtolower($info['extension']), $this->config['pb_image_extensions']))
-					return false;
-
-				if($file['size'] > $this->config['pb_image_maxsize'])
-					return false;
-
-				if(!move_uploaded_file($file['tmp_name'], $path))
-					return false;
-				
-				chmod($path, $this->config['txt_config']['dir_mode']);
-
-				if(!$rename)
-					$filename = $file['name'];
-				else
-					$filename = $rename . "." . strtolower($info['extension']);
-
-				return $filename;
-			}
-
-		function downTheImg($img, $rename)
-			{
-				$info = pathinfo($img);
-
-				if(!in_array(strtolower($info['extension']), $this->config['pb_image_extensions']))
-					return false;
-
-				if(!$this->config['pb_images'] || !$this->config['pb_download_images'])
-					return false;
-
-				if(substr($img, 0, 4) == 'http') 
-					{
-						$x = array_change_key_case(get_headers($img, 1), CASE_LOWER);
-						if ( strcasecmp($x[0], 'HTTP/1.1 200 OK') != 0 ) { $x = $x['content-length'][1]; }
-						else { $x = $x['content-length']; }
-					}
-				else { $x = @filesize($img); } 
-		
-				$size = $x;
-		
-				if($size > $this->config['pb_image_maxsize'])
-					return false;
-			
-				$data = file_get_contents($img);
-
-				$path = $this->setDataPath($rename . "." . strtolower($info['extension']));
-		
-				$fopen = fopen($path, "w+");
-				fwrite($fopen, $data);
-				fclose($fopen);
-
-				chmod($path, $this->config['txt_config']['dir_mode']);
-
-				$filename = $rename . "." . strtolower($info['extension']);
-
-				return $filename;
-			}
-
-		public function insertPaste($id, $data, $arbLifespan = FALSE)
-			{
-
-				if($arbLifespan && $data['Lifespan'] > 0)
-					$data['Lifespan'] = time() + $data['Lifespan'];
-				elseif($arbLifespan && $data['Lifespan'] == 0)
-					$data['Lifespan'] = 0;
-				else
-					{
-						if((($this->config['pb_lifespan'][$data['Lifespan']] == FALSE || $this->config['pb_lifespan'][$data['Lifespan']] == 0) && $this->config['pb_infinity']) || !$this->config['pb_lifespan'])
-							$data['Lifespan'] = 0;
-						else
-							$data['Lifespan'] = time() + ($this->config['pb_lifespan'][$data['Lifespan']] * 60 * 60 * 24);
-					}
-
-
-				$paste = array(	'ID'		=>	$id,
-						'Subdomain'	=>	$data['Subdomain'],
-						'Datetime'	=>	time() + $data['Time_offset'],
-						'Author'	=>	$data['Author'],
-						'Protection'	=>	$data['Protect'],
-						'Encrypted'	=>	$data['Encrypted'],
-						'Syntax' 	=>	$data['Syntax'],
-						'Parent'	=>	$data['Parent'],
-						'Image'		=>	$data['Image'],
-						'ImageTxt'	=>	$this->cleanHTML($data['ImageTxt']),
-						'URL'		=>	$data['URL'],
-						'Video'		=>	$this->cleanHTML($data['Video']),
-						'Lifespan'	=>	$data['Lifespan'],
-						'IP'		=>	base64_encode($data['IP']),
-						'Data'		=>	$this->cleanHTML($data['Content']),
-						'GeSHI'		=>	$this->cleanHTML($data['GeSHI']),
-						'Style'		=>	$this->cleanHTML($data['Style'])
-					);
-
-				if(($paste['Protection'] > 0  && $this->config['pb_private']) || ($paste['Protection'] > 0 && $arbLifespan))
-					$id = "!" . $id;
-				else
-					$paste['Protection'] = 0;
-			
-				switch($this->dbt)
-					{
-						case "mysql":
-							$this->connect();
-							$query = "INSERT INTO " . $this->config['mysql_connection_config']['db_table'] . " (ID, Subdomain, Datetime, Author, Protection, Encrypted, Syntax, Parent, Image, ImageTxt, URL, Video, Lifespan, IP, Data, GeSHI, Style) VALUES ('" . $paste['ID'] . "', '" . $paste['Subdomain'] . "', '" . $paste['Datetime'] . "', '" . $paste['Author'] . "', " . (int)$paste['Protection'] . ", '" . $paste['Encrypted'] . "', '" . $paste['Syntax'] . "', '" . $paste['Parent'] . "', '" . $paste['Image'] . "', '" . $paste['ImageTxt'] . "', '" . $paste['URL'] . "', '" . $paste['Video'] . "', '" . (int)$paste['Lifespan'] . "', '" . $paste['IP'] . "', '" . $paste['Data'] . "', '" . $paste['GeSHI'] . "', '" . $paste['Style'] . "')";
-							$result = mysql_query($query);
-						break;
-						case "txt":
-							$index = $this->deserializer($this->read($this->setDataPath() . "/" . $this->config['txt_config']['db_index']));
-							$index[] = $id;
-							$this->write($this->serializer($index), $this->setDataPath() . "/" . $this->config['txt_config']['db_index']);				
-							$result = $this->write($this->serializer($paste), $this->setDataPath($paste['ID']));
-							chmod($this->setDataPath($paste['ID']), $this->config['txt_config']['file_mode']);
-						break;
-					}
-				return $result;
-			}
-
-		public function checkID($id)
-			{
-				switch($this->dbt)
-					{
-						case "mysql":
-							$this->connect();							
-							$query = "SELECT * FROM " . $this->config['mysql_connection_config']['db_table'] . " WHERE ID = '" . $id . "'";
-							$result = mysql_query($query);
-							$result = mysql_num_rows($result);
-								if($result > 0)
-									$output = TRUE;
-								else
-									$output = FALSE;
-						break;
-						case "txt":
-							$index = $this->deserializer($this->read($this->setDataPath() . "/" . $this->config['txt_config']['db_index']));
-								if(in_array($id, $index) || in_array("!" . $id, $index))
-									$output = TRUE;
-								else
-									$output = FALSE;
-						break;
-					}
-				return $output;
-			}
-
-		public function getLastID()
-			{
-				if(!is_int($this->config['pb_id_length']))
-					$this->config['pb_id_length'] = 1;
-				if($this->config['pb_id_length'] > 32)
-					$this->config['pb_id_length'] = 32;
-
-				switch($this->dbt)
-					{
-						case "mysql":
-							$this->connect();							
-							$query = "SELECT * FROM " . $this->config['mysql_connection_config']['db_table'] . " WHERE ID <> 'subdomain' && ID <> 'forbidden' ORDER BY Datetime DESC LIMIT 1";
-							$result = mysql_query($query);
-							$output = $this->config['pb_id_length'];
-							while($assoc = mysql_fetch_assoc($result))
-								{
-									if(strlen($assoc['ID']) >= 1)
-										$output = strlen($assoc['ID']);
-									else
-										$output = $this->config['pb_id_length'];
-								}
-
-							if($output < 1)
-								$output = $this->config['pb_id_length'];
-
-							mysql_free_result($result);
-
-						break;
-						case "txt":
-							$index = $this->deserializer($this->read($this->setDataPath() . "/" . $this->config['txt_config']['db_index']));
-							$index = array_reverse($index);
-							$output = strlen(str_replace("!", NULL, $index[0]));
-							if($output < 1)
-								$output = $this->config['pb_id_length'];
-						break;
-					}
-
-				return $output;
-			}
-
-
+		$this->config = $config;
+		$this->dbt = NULL;
+
+		switch($this->config['db_type'])
+		{
+			case "flatfile":
+				$this->dbt = "txt";
+			break;
+			case "mysql":
+				$this->dbt = "mysql";
+			break;
+			default:
+				$this->dbt = "txt";
+			break;
+		}
 	}
+
+	public function serializer($data)
+	{
+		$serialize = serialize($data);
+		$output = $serialize;
+
+		return $output;
+	}
+			
+	public function deserializer($data)
+	{
+		$unserialize = unserialize($data);
+		$output = $unserialize;
+
+		return $output;
+	}
+			
+	public function read($file)
+	{
+		$open = fopen($file, "r");
+		$data = fread($open, filesize($file) + 1024);
+		fclose($open);
+
+		return $data;
+	}
+			
+	public function append($data, $file)
+	{
+		$open = fopen($file, "a");
+		$write = fwrite($open, $data);
+		fclose($open);
+				
+		return $write;
+	}
+			
+	public function write($data, $file)
+	{
+		$open = fopen($file, "w");
+		$write = fwrite($open, $data);
+		fclose($open);
+				
+		return $write;
+	}
+
+	public function array_remove(array &$a_Input, $m_SearchValue, 
+		$b_Strict = False)
+	{
+    	$a_Keys = array_keys($a_Input, $m_SearchValue, $b_Strict);
+
+    	foreach($a_Keys as $s_Key)
+			unset($a_Input[$s_Key]);
+
+		return $a_Input;
+	}
+
+	public function setDataPath($filename = FALSE, $justPath = FALSE, 
+		$forceImage = FALSE)
+	{
+		if(!$filename && !$forceImage)
+			return $this->config['txt_config']['db_folder'];
+				
+		if(!$filename && $forceImage)
+			return $this->config['txt_config']['db_folder'] . "/" 
+				. $this->config['txt_config']['db_images'];
+
+		$filename = str_replace("!", "", $filename);
+
+		$this->config['max_folder_depth'] = (int)$this->config['max_folder_depth'];
+
+		if($this->config['max_folder_depth'] < 1 
+			|| !is_numeric($this->config['max_folder_depth']))
+			$this->config['max_folder_depth'] = 1;
+
+		$info = pathinfo($filename);
+
+		if(!in_array(strtolower($info['extension']), 
+			$this->config['pb_image_extensions']))
+		{
+			$path = $this->config['txt_config']['db_folder'] . "/" 
+				. substr($filename, 0, 1);
+
+			if(!file_exists($path) 
+				&& is_writable($this->config['txt_config']['db_folder']))
+			{
+				mkdir($path);
+				chmod($path, $this->config['txt_config']['dir_mode']);
+				$this->write("FORBIDDEN", $path . "/index.html");
+				chmod($path . "/index.html", 
+					$this->config['txt_config']['file_mode']);
+			}
+
+			for ($i = 1; $i <= $this->config['max_folder_depth'] - 1; $i++) 
+			{
+				$parent = $path;
+						   
+				if(strlen($filename) > $i)
+					$path .= "/" . substr($filename, $i, 1);
+
+				if(!file_exists($path) && is_writable($parent))
+				{
+					mkdir($path);
+					chmod($path, $this->config['txt_config']['dir_mode']);
+					$this->write("FORBIDDEN", $path . "/index.html");
+					chmod($path . "/index.html", 
+						$this->config['txt_config']['file_mode']);
+				}
+
+			}
+
+
+		} else {
+			$path = $this->config['txt_config']['db_folder'] . "/" 
+				. $this->config['txt_config']['db_images'] . "/" 
+				. substr($info['filename'], 0, 1);
+							
+			if(!file_exists($path) 
+				&& is_writable($this->config['txt_config']['db_folder'] . "/" 
+				. $this->config['txt_config']['db_images']))
+			{
+				mkdir($path);
+				chmod($path, $this->config['txt_config']['dir_mode']);
+				$this->write("FORBIDDEN", $path . "/index.html");
+				chmod($path . "/index.html", 
+					$this->config['txt_config']['file_mode']);
+			}
+
+			for($i = 1; $i <= $this->config['max_folder_depth'] - 1; $i++) 
+			{
+				$parent = $path;
+							   
+				if(strlen($info['filename']) > $i)
+					$path .= "/" . substr($info['filename'], $i, 1);
+
+				if(!file_exists($path) && is_writable($parent))
+				{
+					mkdir($path);
+					chmod($path, $this->config['txt_config']['dir_mode']);
+					$this->write("FORBIDDEN", $path . "/index.html");
+					chmod($path . "/index.html", 
+						$this->config['txt_config']['file_mode']);
+				}
+			}
+		}
+
+		if($justPath)
+			return $path;
+		else
+			return $path . "/" . $filename;
+	}
+
+	public function connect()
+	{
+		switch($this->dbt)
+		{
+			case "mysql":
+				$this->link = mysql_connect(
+					$this->config['mysql_connection_config']['db_host'], 
+					$this->config['mysql_connection_config']['db_uname'], 
+					$this->config['mysql_connection_config']['db_pass']);
+				$result = mysql_select_db(
+					$this->config['mysql_connection_config']['db_name'], 
+					$this->link);
+
+				if($this->link == FALSE || $result == FALSE)
+					$output = FALSE;
+				else
+					$output = TRUE;
+			break;
+			case "txt":
+				if(!is_writeable($this->setDataPath() . "/" 
+					. $this->config['txt_config']['db_index']) 
+					|| !is_writeable($this->setDataPath()))
+					$output = FALSE;
+				else
+					$output = TRUE;
+			break;
+		}
+
+		return $output;
+	}
+
+	public function disconnect()
+	{
+		switch($this->dbt)
+		{
+			case "mysql":
+				mysql_close();
+				$output = TRUE;
+			break;
+			case "txt":
+				$output = TRUE;
+			break;
+		}
+
+		return $output;
+	}
+
+	public function readPaste($id)
+	{
+		switch($this->dbt)
+		{
+			case "mysql":
+				$this->connect();
+				$query = "SELECT * FROM " 
+					. $this->config['mysql_connection_config']['db_table'] 
+					. " WHERE ID = '" . $id . "'";
+				$result = array();
+				$result_temp = mysql_query($query);
+
+				if(!$result_temp || mysql_num_rows($result_temp) < 1)
+					return false;
+
+				while($row = mysql_fetch_assoc($result_temp))
+					$result[] = $row;
+
+				mysql_free_result($result_temp);
+			break;
+			case "txt":
+				$result = array();
+
+				if(!file_exists($this->setDataPath($id)))
+				{
+					$index = $this->deserializer($this->read(
+						$this->setDataPath() . "/" 
+						. $this->config['txt_config']['db_index']));
+
+					if(in_array($id, $index))
+						$this->dropPaste($id, TRUE);
+
+					return false;
+				}
+
+				$result = $this->deserializer(
+					$this->read($this->setDataPath($id)));
+
+			break;
+		}
+
+		if(count($result) < 1)
+			$result = FALSE;
+
+		return $result;
+	}
+
+	public function dropPaste($id, $ignoreImage = FALSE)
+	{
+		$id = (string)$id;
+
+		if(!$ignoreImage)
+		{
+			$imgTemp = $this->readPaste($id);
+
+			if($this->dbt == "mysql")
+				$imgTemp = $imgTemp[0];
+
+			if($imgTemp['Image'] != NULL 
+				&& file_exists($this->setDataPath($imgTemp['Image'])))
+				unlink($this->setDataPath($imgTemp['Image']));
+		}
+
+		switch($this->dbt)
+		{
+			case "mysql":
+				$this->connect();
+				$query = "DELETE FROM " 
+					. $this->config['mysql_connection_config']['db_table'] 
+					. " WHERE ID = '" . $id . "'";
+				$result = mysql_query($query);
+			break;
+			case "txt":
+				if(file_exists($this->setDataPath($id)))
+					$result = unlink($this->setDataPath($id));
+
+				$index = $this->deserializer($this->read($this->setDataPath() 
+					. "/" . $this->config['txt_config']['db_index']));
+
+				if(in_array($id, $index))
+					$key = array_keys($index, $id);	
+				elseif(in_array("!" . $id, $index))
+					$key = array_keys($index, "!" . $id);
+
+				$key = $key[0];
+
+				if(isset($index[$key]))	
+					unset($index[$key]);
+
+				$index = array_values($index);
+				$result = $this->write($this->serializer($index), 
+					$this->setDataPath() . "/" 
+					. $this->config['txt_config']['db_index']);
+			break;
+		}
+
+		return $result;
+	}
+		
+	public function cleanHTML($input)
+	{
+		if($this->dbt == "mysql")
+			$output = addslashes(str_replace('\\', '\\\\', $input));
+		else
+			$output = addslashes($input);
+
+		return $output;
+	}
+
+	public function lessHTML($input)
+	{
+		$output = htmlspecialchars($input);
+
+		return $output;
+	}
+
+	public function dirtyHTML($input)
+	{
+		$output = htmlspecialchars(stripslashes($input));
+
+		return $output;
+	}
+
+	public function rawHTML($input)
+	{
+		if($this->dbt == "mysql")
+			$output = stripslashes($input);
+		else 
+			$output = stripslashes(stripslashes($input));
+
+		return $output;
+	}
+
+	public function uploadFile($file, $rename = FALSE)
+	{
+		$info = pathinfo($file['name']);
+
+		if(!$this->config['pb_images'])
+			return false;
+
+		if($rename)
+			$path = $this->setDataPath($rename . "." 
+				. strtolower($info['extension'])); 
+		else
+			$path = $path = $this->setDataPath($file['name']);
+
+		if(!in_array(strtolower($info['extension']), 
+			$this->config['pb_image_extensions']))
+			return false;
+
+		if($file['size'] > $this->config['pb_image_maxsize'])
+			return false;
+
+		if(!move_uploaded_file($file['tmp_name'], $path))
+			return false;
+				
+		chmod($path, $this->config['txt_config']['dir_mode']);
+
+		if(!$rename)
+			$filename = $file['name'];
+		else
+			$filename = $rename . "." . strtolower($info['extension']);
+
+		return $filename;
+	}
+
+	public function downTheImg($img, $rename)
+	{
+		$info = pathinfo($img);
+
+		if(!in_array(strtolower($info['extension']), 
+			$this->config['pb_image_extensions']))
+			return false;
+
+		if(!$this->config['pb_images'] || !$this->config['pb_download_images'])
+			return false;
+
+		if(substr($img, 0, 4) == 'http') 
+		{
+			$x = array_change_key_case(get_headers($img, 1), CASE_LOWER);
+
+			if(strcasecmp($x[0], 'HTTP/1.1 200 OK') != 0) 
+				$x = $x['content-length'][1]; 
+			else 
+				$x = $x['content-length']; 
+		} else 
+			$x = @filesize($img);
+		
+		$size = $x;
+		
+		if($size > $this->config['pb_image_maxsize'])
+			return false;
+			
+		$data = file_get_contents($img);
+
+		$path = $this->setDataPath($rename . "." 
+			. strtolower($info['extension']));
+		
+		$fopen = fopen($path, "w+");
+		fwrite($fopen, $data);
+		fclose($fopen);
+
+		chmod($path, $this->config['txt_config']['dir_mode']);
+
+		$filename = $rename . "." . strtolower($info['extension']);
+
+		return $filename;
+	}
+
+	public function insertPaste($id, $data, $arbLifespan = FALSE)
+	{
+		if($arbLifespan && $data['Lifespan'] > 0)
+			$data['Lifespan'] = time() + $data['Lifespan'];
+		elseif($arbLifespan && $data['Lifespan'] == 0)
+			$data['Lifespan'] = 0;
+		else {
+			if((($this->config['pb_lifespan'][$data['Lifespan']] == FALSE 
+				|| $this->config['pb_lifespan'][$data['Lifespan']] == 0) 
+				&& $this->config['pb_infinity']) 
+				|| !$this->config['pb_lifespan'])
+				$data['Lifespan'] = 0;
+			else
+				$data['Lifespan'] = time() 
+					+ ($this->config['pb_lifespan'][$data['Lifespan']] 
+					* 60 * 60 * 24);
+		}
+
+
+		$paste = array('ID'	=> $id,
+			'Subdomain' => $data['Subdomain'],
+			'Datetime' => time() + $data['Time_offset'],
+			'Author' => $data['Author'],
+			'Protection' => $data['Protect'],
+			'Encrypted' => $data['Encrypted'],
+			'Syntax'  => $data['Syntax'],
+			'Parent' => $data['Parent'],
+			'Image' => $data['Image'],
+			'ImageTxt' => $this->cleanHTML($data['ImageTxt']),
+			'URL' => $data['URL'],
+			'Lifespan' => $data['Lifespan'],
+			'IP' =>	base64_encode($data['IP']),
+			'Data' => $this->cleanHTML($data['Content']),
+			'GeSHI' => $this->cleanHTML($data['GeSHI']),
+			'Style' => $this->cleanHTML($data['Style'])
+		);
+
+		if(($paste['Protection'] > 0  && $this->config['pb_private']) 
+			|| ($paste['Protection'] > 0 && $arbLifespan))
+			$id = "!" . $id;
+		else
+			$paste['Protection'] = 0;
+			
+		switch($this->dbt)
+		{
+			case "mysql":
+				$this->connect();
+				$query = "INSERT INTO " 
+					. $this->config['mysql_connection_config']['db_table'] 
+					. " (ID, Subdomain, Datetime, Author, Protection,"
+					. " Encrypted, Syntax, Parent, Image, ImageTxt, URL,"
+					. " Lifespan, IP, Data, GeSHI, Style) VALUES ('" 
+					. $paste['ID'] . "', '" . $paste['Subdomain'] . "', '" 
+					. $paste['Datetime'] . "', '" . $paste['Author'] . "', " 
+					. (int)$paste['Protection'] . ", '" . $paste['Encrypted'] 
+					. "', '" . $paste['Syntax'] . "', '" . $paste['Parent'] 
+					. "', '" . $paste['Image'] . "', '" . $paste['ImageTxt'] 
+					. "', '" . $paste['URL'] . "', '" 
+					. (int)$paste['Lifespan'] . "', '" . $paste['IP'] 
+					. "', '" . $paste['Data'] . "', '" . $paste['GeSHI'] 
+					. "', '" . $paste['Style'] . "')";
+				$result = mysql_query($query);
+			break;
+			case "txt":
+				$index = $this->deserializer($this->read($this->setDataPath() 
+					. "/" . $this->config['txt_config']['db_index']));
+				$index[] = $id;
+				$this->write($this->serializer($index), $this->setDataPath() 
+					. "/" . $this->config['txt_config']['db_index']);
+				$result = $this->write($this->serializer($paste), 
+					$this->setDataPath($paste['ID']));
+				chmod($this->setDataPath($paste['ID']), 
+					$this->config['txt_config']['file_mode']);
+			break;
+		}
+
+		return $result;
+	}
+
+	public function checkID($id)
+	{
+		switch($this->dbt)
+		{
+			case "mysql":
+				$this->connect();							
+				$query = "SELECT * FROM " 
+					. $this->config['mysql_connection_config']['db_table'] 
+					. " WHERE ID = '" . $id . "'";
+				$result = mysql_query($query);
+				$result = mysql_num_rows($result);
+
+				if($result > 0)
+					$output = TRUE;
+				else
+					$output = FALSE;
+			break;
+			case "txt":
+				$index = $this->deserializer($this->read($this->setDataPath() 
+					. "/" . $this->config['txt_config']['db_index']));
+
+				if(in_array($id, $index) || in_array("!" . $id, $index))
+					$output = TRUE;
+				else
+					$output = FALSE;
+			break;
+		}
+
+		return $output;
+	}
+
+	public function getLastID()
+	{
+		if(!is_int($this->config['pb_id_length']))
+			$this->config['pb_id_length'] = 1;
+		if($this->config['pb_id_length'] > 32)
+			$this->config['pb_id_length'] = 32;
+
+		switch($this->dbt)
+		{
+			case "mysql":
+				$this->connect();							
+				$query = "SELECT * FROM " 
+					. $this->config['mysql_connection_config']['db_table'] 
+					. " WHERE ID <> 'subdomain' && ID <> 'forbidden'"
+					. " ORDER BY Datetime DESC LIMIT 1";
+				$result = mysql_query($query);
+				$output = $this->config['pb_id_length'];
+
+				while($assoc = mysql_fetch_assoc($result))
+				{
+					if(strlen($assoc['ID']) >= 1)
+						$output = strlen($assoc['ID']);
+					else
+						$output = $this->config['pb_id_length'];
+				}
+
+				if($output < 1)
+					$output = $this->config['pb_id_length'];
+
+				mysql_free_result($result);
+
+			break;
+			case "txt":
+				$index = $this->deserializer($this->read($this->setDataPath() 
+					. "/" . $this->config['txt_config']['db_index']));
+				$index = array_reverse($index);
+				$output = strlen(str_replace("!", NULL, $index[0]));
+
+				if($output < 1)
+					$output = $this->config['pb_id_length'];
+			break;
+		}
+
+		return $output;
+	}
+
+
+}
 
 class bin
 	{
@@ -1348,7 +1429,7 @@ class bin
 				if(gmdate('U') > $pasteData['Lifespan'])
 					return false;
 
-				if($pasteData['URL'] != NULL && $this->db->config['pb_url'] && !$this->generateVideoEmbedCode($pasteData['URL']))
+				if($pasteData['URL'] != NULL && $this->db->config['pb_url'])
 					return $pasteData['URL'];
 				else
 					return false;
@@ -1410,86 +1491,6 @@ class bin
 				return $output;
 			}
 
-		public function generateVideoEmbedCode($url)
-			{
-				$type = array();
-				$type['youtube'] = stristr($url, "youtube.com");
-				$type['vimeo'] = stristr($url, "vimeo.com");
-				$type['dailymotion'] = stristr($url, "dailymotion.com");
-				$type['flv'] = $this->stristr_array($url, array('.flv', '.f4v', 'mp4', 'm4v', 'm4p'));
-				$is = NULL;
-
-				if(!$this->db->config['pb_video'])
-					return false;
-
-				if($type['youtube']) {
-					$output = "<object width=\"" . $this->db->config['pb_video_size']['width'] . "\" height=\"" . $this->db->config['pb_video_size']['height'] . "\"><param name=\"movie\" value=\"http://youtube.com/v/{VIDEO}\"></param><embed src=\"http://youtube.com/v/{VIDEO}\" type=\"application/x-shockwave-flash\" width=\"" . $this->db->config['pb_video_size']['width'] . "\" height=\"" . $this->db->config['pb_video_size']['height'] . "\"></embed></object>";
-					$is = "youtube";
-				}
-				if($type['vimeo']) {
-					$output = "<object width=\"" . $this->db->config['pb_video_size']['width'] . "\" height=\"" . $this->db->config['pb_video_size']['height'] . "\"><param name=\"allowfullscreen\" value=\"true\" /><param name=\"allowscriptaccess\" value=\"always\" /><param name=\"movie\" value=\"http://vimeo.com/moogaloop.swf?clip_id={VIDEO}&amp;server=vimeo.com&amp;show_title=1&amp;show_byline=1&amp;show_portrait=0&amp;color=&amp;fullscreen=1\" /><embed src=\"http://vimeo.com/moogaloop.swf?clip_id={VIDEO}&amp;server=vimeo.com&amp;show_title=1&amp;show_byline=1&amp;show_portrait=0&amp;color=&amp;fullscreen=1\" type=\"application/x-shockwave-flash\" allowfullscreen=\"true\" allowscriptaccess=\"always\" width=\"" . $this->db->config['pb_video_size']['width'] . "\" height=\"" . $this->db->config['pb_video_size']['height'] . "\"></embed></object>";
-					$is = "vimeo";
-				}
-				if($type['dailymotion']) {
-					$output = "<object width=\"" . $this->db->config['pb_video_size']['width'] . "\" height=\"" . $this->db->config['pb_video_size']['height'] . "\"><param name=\"movie\" value=\"http://www.dailymotion.com/swf/{VIDEO}\" /><param name=\"allowFullScreen\" value=\"true\" /><param name=\"allowScriptAccess\" value=\"always\" /><embed src=\"http://www.dailymotion.com/swf/{VIDEO}\" type=\"application/x-shockwave-flash\" width=\"" . $this->db->config['pb_video_size']['width'] . "\" height=\"" . $this->db->config['pb_video_size']['height'] . "\" allowFullScreen=\"true\" allowScriptAccess=\"always\"></embed></object>";
-					$is = "dailymotion";
-				}
-				if($this->flowplayer())
-					{
-
-						if($type['flv']){
-							$output = "	<a 
-											href=\"{VIDEO}\"
-											style=\"display: block; width: " . $this->db->config['pb_video_size']['width'] . "px; height: " . $this->db->config['pb_video_size']['height'] . "px;\"
-											id=\"player\"
-										>
-										</a>
-										
-										<script type=\"text/javascript\">
-											flowplayer(\"player\", \"" . $this->flowplayer() . "\");
-										</script>";
-							$is = "flv";
-						}
-					}
-
-				if($is == NULL)
-					return false;
-					
-						switch ($is)
-							{
-								case "youtube":
-									$vidID = str_replace("http://www.youtube.com/watch?v=", "", $url);
-									$vidID = str_replace("http://youtube.com/watch?v=", "", $vidID);
-									if(stristr($vidID, "&")) {
-										$explode = explode("&", $vidID);
-										$vidID = $explode[0];
-									}
-								break;
-								case "vimeo":
-									$vidID = str_replace("http://vimeo.com/", "", $url);
-									$vidID = str_replace("http://www.vimeo.com/", "", $vidID);
-									if(stristr($vidID, "#")) {
-										$explode = explode("#", $vidID, 2);
-										$vidID = $explode[1];
-									}
-								break;
-								case "dailymotion":
-									$vidID = str_replace("http://dailymotion.com/", "", $url);
-									$vidID = str_replace("http://www.dailymotion.com/", "", $vidID);
-									if(stristr($vidID, "_")) {
-										$explode = explode("_", $vidID);
-										$vidID = $explode[0];
-									}
-									
-								break;
-								case "flv":
-									$vidID = $url;
-								break;
-							}
-		
-				$output = str_replace("{VIDEO}", $vidID, $output);
-				return $output;
-			}
 	}
 
 $requri = $_SERVER['REQUEST_URI'];
@@ -1729,16 +1730,6 @@ if($requri == "defaults")
 		else
 			$defaults['highlight'] = 0; 
 
-		if($CONFIG['pb_video'])
-			$defaults['video'] = 1;
-		else
-			$defaults['video'] = 0;
-
-		if($bin->flowplayer())
-			$defaults['flv_video'] = 1;
-		else
-			$defaults['flv_video'] = 0;
-
 		if($CONFIG['pb_private'])
 			$defaults['privacy'] = 1;
 		else
@@ -1795,8 +1786,6 @@ if($requri == "defaults")
 					"jQuery":		' . $defaults['ajax'] . ',
 					"syntax":		' . $defaults['syntax'] . ',
 					"line_highlight":	' . $defaults['highlight'] . ',
-					"video":		' . $defaults['video'] . ',
-					"flv_video":		' . $defaults['flv_video'] . ',
 					"url_format":		' . $defaults['ex_url'] . ',
 					"lifespan":		' . $defaults['lifespan'] . ',
 					"privacy":		' . $defaults['privacy'] . '
@@ -1909,9 +1898,7 @@ if($requri == "api")
 				if(@$_POST['pasteEnter'] == NULL && strlen(@$_FILES['pasteImage']['name']) > 4 && $CONFIG['pb_images'])
 					$_POST['pasteEnter'] = "Image file (" . $_FILES['pasteImage']['name'] . ") uploaded...";
 
-				$videoSRC = $bin->generateVideoEmbedCode($postedURL);
-
-				if($videoSRC || !$CONFIG['pb_url'])
+				if(!$CONFIG['pb_url'])
 					$exclam = NULL;
 
 				if(!$CONFIG['pb_url'])
@@ -1938,7 +1925,6 @@ if($requri == "api")
 					'Image' => $imageUpload,
 					'ImageTxt' => "Image file (" . @$_FILES['pasteImage']['name'] . ") uploaded...",
 					'URL' => $postedURL,
-					'Video' => $videoSRC,
 					'Lifespan' => $_POST['lifespan'],
 					'Protect' => $_POST['privacy'],
 					'Encrypted' => $encryption,
@@ -2040,7 +2026,6 @@ if($requri == "api")
 										"image":		0,
 										"image_text":		0,
 										"link":			0,
-										"video":		0,
 										"lifespan":		0,
 										"data":			"Encrypted pastes cannot be sent over API!",
 										"data_html":		"' . $db->dirtyHTML("<!-- Encrypted pastes cannot be sent over API!  -->") . '",
@@ -2070,7 +2055,6 @@ if($requri == "api")
 									"image":		"' . $pasted['Image_path'] . '",
 									"image_text":		"' . $pasted['ImageTxt'] . '",
 									"link":			"' . $pasted['URL'] . '",
-									"video":		"' . $pasted['Video'] . '",
 									"lifespan":		' . $pasted['Lifespan']. ',
 									"data":			"' . urlencode($db->dirtyHTML($pasted['Data'])) . '",
 									"geshi":		"' . urlencode($pasted['GeSHI']) . '",
@@ -2094,7 +2078,6 @@ if($requri == "api")
 									"image":		0,
 									"image_text":		0,
 									"link":			0,
-									"video":		0,
 									"lifespan":		0,
 									"data":			"This paste has either expired or doesn\'t exist!",
 									"data_html":		"' . $db->dirtyHTML("<!-- This paste has either expired or doesn't exist!  -->") . '",
@@ -2147,7 +2130,7 @@ if($requri != "install")
 		<link rel="icon" type="image/png" href="favicon.png" />
 		<meta name="generator" content="Knoxious Pastebin">
 		<meta name="Description" content="A quick, simple, multi-purpose pastebin." />	
-		<meta name="Keywords" content="simple quick pastebin image hosting video linking embedding url shortening syntax highlighting" />
+		<meta name="Keywords" content="simple quick pastebin image hosting linking embedding url shortening syntax highlighting" />
 		<meta name="Robots" content="<?php echo $bin->robotPrivacy($requri); ?>" /> 
 		<meta name="Author" content="Xan Manning, Knoxious.co.uk" />
 
@@ -2228,7 +2211,6 @@ if($requri != "install")
 				#_clipboardURI_replace { visibility: hidden; }
 				#_copyText { visibility: hidden; }
 				#_copyURL { visibility: hidden; }
-				#video { text-align: center; }
 			
 			@media print {
 				body { background: #fff; font-family: Arial, Helvetica, sans-serif; font-size: 10pt; }
@@ -2929,9 +2911,7 @@ if($requri != "install" && @$_POST['submit'])
 		if(@$_POST['pasteEnter'] == NULL && strlen(@$_FILES['pasteImage']['name']) > 4 && $CONFIG['pb_images'] && $imageUpload)
 			$_POST['pasteEnter'] = "Image file (" . $_FILES['pasteImage']['name'] . ") uploaded...";
 
-		$videoSRC = $bin->generateVideoEmbedCode($postedURL);
-
-		if($videoSRC || !$CONFIG['pb_url'])
+		if(!$CONFIG['pb_url'])
 			$exclam = NULL;
 
 		if(!$CONFIG['pb_url'])
@@ -2959,7 +2939,6 @@ if($requri != "install" && @$_POST['submit'])
 			'Image' => $imageUpload,
 			'ImageTxt' => "Image file (" . @$_FILES['pasteImage']['name'] . ") uploaded...",
 			'URL' => $postedURL,
-			'Video' => $videoSRC,
 			'Syntax' => $_POST['highlighter'],
 			'Lifespan' => $_POST['lifespan'],
 			'Protect' => $_POST['privacy'],
@@ -3014,7 +2993,7 @@ if($requri != "install" && $CONFIG['pb_recent_posts'] && substr($requri, -1) != 
 					foreach($recentPosts as $paste_) {
 						$rel = NULL;
 						$exclam = NULL;
-						if($paste_['URL'] != NULL && $CONFIG['pb_url'] && !$bin->generateVideoEmbedCode($paste_['URL'])) {
+						if($paste_['URL'] != NULL && $CONFIG['pb_url']) {
 							$exclam = "!";
 							$rel = " rel=\"link\"";
 						}
@@ -3026,15 +3005,6 @@ if($requri != "install" && $CONFIG['pb_recent_posts'] && substr($requri, -1) != 
 								$exclam = NULL;
 
 							$rel = " rel=\"image\"";
-						}
-
-						if($paste_['Video'] != NULL && $CONFIG['pb_video'] && $bin->generateVideoEmbedCode($paste_['URL'])) {
-							if($CONFIG['pb_media_warn'])
-								$exclam = "!";
-							else
-								$exclam = NULL;
-
-							$rel = " rel=\"video\"";
 						}
 
 						if($paste_['Encrypted'] != NULL && $paste_['URL'] == NULL) {
@@ -3135,8 +3105,6 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 
 				if(!is_bool($pasted['Image']) && !is_numeric($pasted['Image']))
 					$pasteSize = $bin->humanReadableFilesize(filesize($db->setDataPath($pasted['Image'])));
-				elseif($pasted['Video'] && $CONFIG['pb_video'])
-					$pasteSize = $bin->humanReadableFilesize(mb_strlen($pasted['Video']));
 				else
 					$pasteSize = $bin->humanReadableFilesize(mb_strlen($pasted['Data']['Orig']));
 
@@ -3163,13 +3131,10 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 				if(!is_bool($pasted['Image']) && !is_numeric($pasted['Image']))
 					echo "<div id=\"imageContainer\"><a href=\"" . $bin->linker() . $db->setDataPath($pasted['Image']) . "\" rel=\"external\"><img src=\"" . $bin->linker() . $db->setDataPath($pasted['Image']) . "\" alt=\"" . $pasted['ImageTxt'] . "\" class=\"pastedImage\" /></a></div>";
 
-				if($pasted['Video'] && $CONFIG['pb_video'])
-					echo "<div class=\"spacer\">&nbsp;</div><div id=\"video\">" . stripslashes($pasted['Video']) . "</div><div class=\"spacer\">&nbsp;</div>";
-			
 				if(strlen($pasted['Parent']) > 0)
 					echo "<div class=\"warn\"><strong>This is an edit of</strong> <a href=\"" . $bin->linker($pasted['Parent']) . "\">" . $bin->linker($pasted['Parent']) . "</a></div>";
 
-				if(!$bin->highlight() || (!is_bool($pasted['Image']) && !is_numeric($pasted['Image'])) || ($pasted['Video'] && $CONFIG['pb_video']) || $pasted['Syntax'] == "plaintext")
+				if(!$bin->highlight() || (!is_bool($pasted['Image']) && !is_numeric($pasted['Image'])) || $pasted['Syntax'] == "plaintext")
 					echo "<div id=\"styleBar\"><strong>Toggle</strong> <a href=\"#\" onclick=\"return toggleExpand();\">Expand</a> &nbsp;  <a href=\"#\" onclick=\"return toggleWrap();\">Wrap</a> &nbsp; <a href=\"#\" onclick=\"return toggleStyle();\">Style</a> &nbsp; <a href=\"" . $bin->linker($pasted['ID'] . '@raw') . "\">Raw</a></div>";
 				else
 					echo "<div id=\"styleBar\"><strong>Toggle</strong> <a href=\"#\" onclick=\"return toggleExpand();\">Expand</a> &nbsp;  <a href=\"#\" onclick=\"return toggleWrap();\">Wrap</a> &nbsp; <a href=\"" . $bin->linker($pasted['ID'] . '@raw') . "\">Raw</a></div>";
@@ -3180,7 +3145,7 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 					echo "<div class=\"spacer\">&nbsp;</div>";
 
 				
-				if(!$bin->highlight() || (!is_bool($pasted['Image']) && !is_numeric($pasted['Image'])) || ($pasted['Video'] && $CONFIG['pb_video']) || $pasted['Syntax'] == "plaintext")
+				if(!$bin->highlight() || (!is_bool($pasted['Image']) && !is_numeric($pasted['Image'])) || $pasted['Syntax'] == "plaintext")
 					{
 						echo "<div id=\"retrievedPaste\"><div id=\"lineNumbers\"><ol id=\"orderedList\" class=\"monoText\">";
 							$lines = explode("\n", $pasted['Data']['Dirty']);
@@ -3381,7 +3346,7 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 
 				if(count($stage) > 3)
 				{ echo "<li>Creating Database Tables. ";
-					$structure = "CREATE TABLE IF NOT EXISTS " . $CONFIG['mysql_connection_config']['db_table'] . " (ID varchar(255), Subdomain varchar(100), Datetime bigint, Author varchar(255), Protection int, Encrypted longtext DEFAULT NULL, Syntax varchar(255) DEFAULT 'plaintext', Parent longtext, Image longtext, ImageTxt longtext, URL longtext, Video longtext, Lifespan int, IP varchar(225), Data longtext, GeSHI longtext, Style longtext, INDEX (id)) ENGINE = INNODB CHARACTER SET utf8 COLLATE utf8_general_ci";
+					$structure = "CREATE TABLE IF NOT EXISTS " . $CONFIG['mysql_connection_config']['db_table'] . " (ID varchar(255), Subdomain varchar(100), Datetime bigint, Author varchar(255), Protection int, Encrypted longtext DEFAULT NULL, Syntax varchar(255) DEFAULT 'plaintext', Parent longtext, Image longtext, ImageTxt longtext, URL longtext, Lifespan int, IP varchar(225), Data longtext, GeSHI longtext, Style longtext, INDEX (id)) ENGINE = INNODB CHARACTER SET utf8 COLLATE utf8_general_ci";
 				if($db->dbt == "mysql")
 					{				
 						if(!mysql_query($structure, $db->link) && !$CONFIG['mysql_connection_config']['db_existing'])
@@ -3511,16 +3476,6 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 				else
 					$service['highlight'] = array('style' => 'error', 'status' => 'Disabled', 'tip' => NULL); 
 
-				if($CONFIG['pb_video'])
-					$service['video'] = array('style' => 'success', 'status' => 'Enabled', 'tip' => " If you post a URL that links to a video on YouTube, Vimeo or DailyMotion the pastebin will embed the video into the page for easy viewing!");
-				else
-					$service['video'] = array('style' => 'error', 'status' => 'Disabled', 'tip' => NULL);
-
-				if($bin->flowplayer())
-					$service['flowplayer'] = array('style' => 'success', 'status' => 'Enabled');
-				else
-					$service['flowplayer'] = array('style' => 'error', 'status' => 'Disabled');
-
 				$uploadForm = NULL;
 
 				if($bin->jQuery())
@@ -3539,7 +3494,7 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 				$bin->setTagline($CONFIG['pb_tagline'])
 				. "<div id=\"result\"></div>
 				<div id=\"formContainer\">
-				<div id=\"instructions\" class=\"instructions\"><h2>How to use</h2><div>Fill out the form with data you wish to store online. You will be given an unique address to access your content that can be sent over IM/Chat/(Micro)Blog for online collaboration (eg, " . $bin->linker('z3n') . "). The following services have been made available by the administrator of this server:</div><ul id=\"serviceList\"><li><span class=\"success\">Enabled</span> Text</li><li><span class=\"" . $service['syntax']['style'] . "\">" . $service['syntax']['status'] . "</span> Syntax Highlighting</li><li><span class=\"" . $service['highlight']['style'] . "\">" . $service['highlight']['status'] . "</span> Line Highlighting</li><li><span class=\"" . $service['editing']['style'] . "\">" . $service['editing']['status'] . "</span> Editing</li><li><span class=\"" . $service['encrypting']['style'] . "\">" . $service['encrypting']['status'] . "</span> Password Protection</li><li><span class=\"" . $service['clipboard']['style'] . "\">" . $service['clipboard']['status'] . "</span> Copy to Clipboard</li><li><span class=\"" . $service['images']['style'] . "\">" . $service['images']['status'] . "</span> Image hosting</li><li><span class=\"" . $service['image_download']['style'] . "\">" . $service['image_download']['status'] . "</span> Copy image from URL</li><li><span class=\"" . $service['video']['style'] . "\">" . $service['video']['status'] . "</span> Video Embedding (YouTube, Vimeo &amp; DailyMotion)</li><li><span class=\"" . $service['flowplayer']['style'] . "\">" . $service['flowplayer']['status'] . "</span> Flash player for flv/mp4 files.</li><li><span class=\"" . $service['url']['style'] . "\">" . $service['url']['status'] . "</span> URL Shortening/Redirection</li><li><span class=\"" . $service['jQuery']['style'] . "\">" . $service['jQuery']['status'] . "</span> Visual Effects</li><li><span class=\"" . $service['jQuery']['style'] . "\">" . $service['jQuery']['status'] . "</span> AJAX Posting</li><li><span class=\"" . $service['api']['style'] . "\">" . $service['api']['status'] . "</span> API</li><li><span class=\"" . $service['subdomains']['style'] . "\">" . $service['subdomains']['status'] . "</span> Custom Subdomains</li></ul><div class=\"spacer\">&nbsp;</div><div><strong>What to do</strong></div><div>Just paste your text, sourcecode or conversation into the textbox below, add a name if you wish" . $service['images']['tip'] . " then hit submit!" . $service['url']['tip'] . "" . $service['video']['tip'] . "" . $service['highlight']['tip'] . "</div><div class=\"spacer\">&nbsp;</div><div><strong>Some tips about usage;</strong> If you want to put a message up asking if the user wants to continue, add an &quot;!&quot; suffix to your URL (eg, " . $bin->linker('z3n') . "!).</div>" . $service['api']['tip'] . "<div class=\"spacer\">&nbsp;</div></div>" . $service['subdomains']['tip'] . "
+				<div id=\"instructions\" class=\"instructions\"><h2>How to use</h2><div>Fill out the form with data you wish to store online. You will be given an unique address to access your content that can be sent over IM/Chat/(Micro)Blog for online collaboration (eg, " . $bin->linker('z3n') . "). The following services have been made available by the administrator of this server:</div><ul id=\"serviceList\"><li><span class=\"success\">Enabled</span> Text</li><li><span class=\"" . $service['syntax']['style'] . "\">" . $service['syntax']['status'] . "</span> Syntax Highlighting</li><li><span class=\"" . $service['highlight']['style'] . "\">" . $service['highlight']['status'] . "</span> Line Highlighting</li><li><span class=\"" . $service['editing']['style'] . "\">" . $service['editing']['status'] . "</span> Editing</li><li><span class=\"" . $service['encrypting']['style'] . "\">" . $service['encrypting']['status'] . "</span> Password Protection</li><li><span class=\"" . $service['clipboard']['style'] . "\">" . $service['clipboard']['status'] . "</span> Copy to Clipboard</li><li><span class=\"" . $service['images']['style'] . "\">" . $service['images']['status'] . "</span> Image hosting</li><li><span class=\"" . $service['image_download']['style'] . "\">" . $service['image_download']['status'] . "</span> Copy image from URL</li><li><span class=\"" . $service['url']['style'] . "\">" . $service['url']['status'] . "</span> URL Shortening/Redirection</li><li><span class=\"" . $service['jQuery']['style'] . "\">" . $service['jQuery']['status'] . "</span> Visual Effects</li><li><span class=\"" . $service['jQuery']['style'] . "\">" . $service['jQuery']['status'] . "</span> AJAX Posting</li><li><span class=\"" . $service['api']['style'] . "\">" . $service['api']['status'] . "</span> API</li><li><span class=\"" . $service['subdomains']['style'] . "\">" . $service['subdomains']['status'] . "</span> Custom Subdomains</li></ul><div class=\"spacer\">&nbsp;</div><div><strong>What to do</strong></div><div>Just paste your text, sourcecode or conversation into the textbox below, add a name if you wish" . $service['images']['tip'] . " then hit submit!" . $service['url']['tip'] . "" . $service['highlight']['tip'] . "</div><div class=\"spacer\">&nbsp;</div><div><strong>Some tips about usage;</strong> If you want to put a message up asking if the user wants to continue, add an &quot;!&quot; suffix to your URL (eg, " . $bin->linker('z3n') . "!).</div>" . $service['api']['tip'] . "<div class=\"spacer\">&nbsp;</div></div>" . $service['subdomains']['tip'] . "
 				<form id=\"pasteForm\" action=\"" . $bin->linker() . "\" method=\"post\" name=\"pasteForm\" enctype=\"multipart/form-data\">	
 				<div><label for=\"pasteEnter\" class=\"pasteEnterLabel\">Paste your text" . $service['url']['str'] . " here!" . $service['highlight']['tip'] . " <span id=\"showInstructions\">[ <a href=\"#\" onclick=\"return showInstructions();\">more info</a> ]</span><span id=\"showSubdomain\">" . $subdomainClicker . "</span></label>
 						<textarea id=\"pasteEnter\" name=\"pasteEnter\" onkeydown=\"return catchTab(event)\" " . $event . "=\"return checkIfURL(this);\"></textarea></div>
@@ -3611,9 +3566,9 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 <?php if($bin->_clipboard() && $requri && $requri != "install")
 	echo "<div><span id=\"_clipboard_replace\">YOU NEED FLASH!</span> &nbsp; <span id=\"_clipboardURI_replace\">&nbsp;</span></div>";
 
-if(($requri && $requri != "install") && (!is_bool($pasted['Image']) && !is_numeric($pasted['Image'])) || ($pasted['Video'] && $CONFIG['pb_video']) && !$bin->jQuery())
+if(($requri && $requri != "install") && (!is_bool($pasted['Image']) && !is_numeric($pasted['Image'])) && !$bin->jQuery())
 	echo "<script type=\"text/javascript\">setTimeout(\"toggleWrap()\", 1000); setTimeout(\"toggleStyle()\", 1000);</script>";
-elseif(($requri && $requri != "install") && (!is_bool($pasted['Image']) && !is_numeric($pasted['Image'])) || ($pasted['Video'] && $CONFIG['pb_video']) && $bin->jQuery())
+elseif(($requri && $requri != "install") && (!is_bool($pasted['Image']) && !is_numeric($pasted['Image'])) && $bin->jQuery())
 	echo "<script type=\"text/javascript\">$(document).ready(function() { setTimeout(\"toggleWrap()\", 1000); setTimeout(\"toggleStyle()\", 1000); });</script>";
 else
 	echo "<!-- End of Document -->";
