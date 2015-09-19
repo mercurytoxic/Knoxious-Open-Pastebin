@@ -1,16 +1,16 @@
-<?php 
+<?php
 
 /*
  *	Knoxious Open Pastebin		 v 1.6.0
  * ============================================================================
- *	
+ *
  *	Copyright (c) 2009-2010 Xan Manning (http://xan-manning.co.uk/)
  *
  * 	Released under the terms of the MIT License.
  * 	See the MIT for details (http://opensource.org/licenses/mit-license.php).
  *
  *
- *	A quick to set up, rapid install, two-file pastebin! 
+ *	A quick to set up, rapid install, two-file pastebin!
  *	(or at least can be)
  *
  *	Supports text, image hosting and url linking.
@@ -34,20 +34,20 @@ else
 
 /* Start Pastebin */
 if(substr(phpversion(), 0, 3) < 5.2)
-	die('PHP 5.2 is required to run this pastebin! This version is ' 
+	die('PHP 5.2 is required to run this pastebin! This version is '
 		. phpversion() . '. Please contact your host!');
 
 if($CONFIG['pb_encrypt_pastes'] == TRUE && !function_exists('mcrypt_encrypt'))
 	$CONFIG['pb_encrypt_pastes'] = FALSE;
 
 if(@$_POST['encryption'])
-	$_POST['encryption'] = md5(preg_replace("/[^a-zA-Z0-9\s]/", "i0", 
+	$_POST['encryption'] = md5(preg_replace("/[^a-zA-Z0-9\s]/", "i0",
 		$_POST['encryption']));
 
-if(@$_POST['decrypt_phrase']) 
+if(@$_POST['decrypt_phrase'])
 {
 	$_temp_decrypt_phrase = $_POST['decrypt_phrase'];
-	$_POST['decrypt_phrase'] = md5(preg_replace("/[^a-zA-Z0-9\s]/", "i0", 
+	$_POST['decrypt_phrase'] = md5(preg_replace("/[^a-zA-Z0-9\s]/", "i0",
 		$_POST['decrypt_phrase']));
 }
 
@@ -59,18 +59,18 @@ if($CONFIG['pb_infinity'])
 
 
 if($CONFIG['pb_infinity'] && $CONFIG['pb_infinity_default'])
-	$CONFIG['pb_lifespan'] = array_merge((array)$infinity, 
+	$CONFIG['pb_lifespan'] = array_merge((array)$infinity,
 		(array)$CONFIG['pb_lifespan']);
 elseif($CONFIG['pb_infinity'] && !$CONFIG['pb_infinity_default'])
-	$CONFIG['pb_lifespan'] = array_merge((array)$CONFIG['pb_lifespan'], 
+	$CONFIG['pb_lifespan'] = array_merge((array)$CONFIG['pb_lifespan'],
 		(array)$infinity);
 
 
 if(get_magic_quotes_gpc())
 {
-	function callback_stripslashes(&$val, $name) 
+	function callback_stripslashes(&$val, $name)
 	{
-		if(get_magic_quotes_gpc()) 
+		if(get_magic_quotes_gpc())
  			$val = stripslashes($val);
 	}
 
@@ -114,7 +114,7 @@ class db
 
 		return $output;
 	}
-			
+
 	public function deserializer($data)
 	{
 		$unserialize = unserialize($data);
@@ -122,7 +122,7 @@ class db
 
 		return $output;
 	}
-			
+
 	public function read($file)
 	{
 		$open = fopen($file, "r");
@@ -131,26 +131,26 @@ class db
 
 		return $data;
 	}
-			
+
 	public function append($data, $file)
 	{
 		$open = fopen($file, "a");
 		$write = fwrite($open, $data);
 		fclose($open);
-				
+
 		return $write;
 	}
-			
+
 	public function write($data, $file)
 	{
 		$open = fopen($file, "w");
 		$write = fwrite($open, $data);
 		fclose($open);
-				
+
 		return $write;
 	}
 
-	public function array_remove(array &$a_Input, $m_SearchValue, 
+	public function array_remove(array &$a_Input, $m_SearchValue,
 		$b_Strict = False)
 	{
     	$a_Keys = array_keys($a_Input, $m_SearchValue, $b_Strict);
@@ -161,46 +161,46 @@ class db
 		return $a_Input;
 	}
 
-	public function setDataPath($filename = FALSE, $justPath = FALSE, 
+	public function setDataPath($filename = FALSE, $justPath = FALSE,
 		$forceImage = FALSE)
 	{
 		if(!$filename && !$forceImage)
 			return $this->config['txt_config']['db_folder'];
-				
+
 		if(!$filename && $forceImage)
-			return $this->config['txt_config']['db_folder'] . "/" 
+			return $this->config['txt_config']['db_folder'] . "/"
 				. $this->config['txt_config']['db_images'];
 
 		$filename = str_replace("!", "", $filename);
 
 		$this->config['max_folder_depth'] = (int)$this->config['max_folder_depth'];
 
-		if($this->config['max_folder_depth'] < 1 
+		if($this->config['max_folder_depth'] < 1
 			|| !is_numeric($this->config['max_folder_depth']))
 			$this->config['max_folder_depth'] = 1;
 
 		$info = pathinfo($filename);
 
-		if(!in_array(strtolower($info['extension']), 
+		if(!in_array(strtolower($info['extension']),
 			$this->config['pb_image_extensions']))
 		{
-			$path = $this->config['txt_config']['db_folder'] . "/" 
+			$path = $this->config['txt_config']['db_folder'] . "/"
 				. substr($filename, 0, 1);
 
-			if(!file_exists($path) 
+			if(!file_exists($path)
 				&& is_writable($this->config['txt_config']['db_folder']))
 			{
 				mkdir($path);
 				chmod($path, $this->config['txt_config']['dir_mode']);
 				$this->write("FORBIDDEN", $path . "/index.html");
-				chmod($path . "/index.html", 
+				chmod($path . "/index.html",
 					$this->config['txt_config']['file_mode']);
 			}
 
-			for ($i = 1; $i <= $this->config['max_folder_depth'] - 1; $i++) 
+			for ($i = 1; $i <= $this->config['max_folder_depth'] - 1; $i++)
 			{
 				$parent = $path;
-						   
+
 				if(strlen($filename) > $i)
 					$path .= "/" . substr($filename, $i, 1);
 
@@ -209,7 +209,7 @@ class db
 					mkdir($path);
 					chmod($path, $this->config['txt_config']['dir_mode']);
 					$this->write("FORBIDDEN", $path . "/index.html");
-					chmod($path . "/index.html", 
+					chmod($path . "/index.html",
 						$this->config['txt_config']['file_mode']);
 				}
 
@@ -217,25 +217,25 @@ class db
 
 
 		} else {
-			$path = $this->config['txt_config']['db_folder'] . "/" 
-				. $this->config['txt_config']['db_images'] . "/" 
+			$path = $this->config['txt_config']['db_folder'] . "/"
+				. $this->config['txt_config']['db_images'] . "/"
 				. substr($info['filename'], 0, 1);
-							
-			if(!file_exists($path) 
-				&& is_writable($this->config['txt_config']['db_folder'] . "/" 
+
+			if(!file_exists($path)
+				&& is_writable($this->config['txt_config']['db_folder'] . "/"
 				. $this->config['txt_config']['db_images']))
 			{
 				mkdir($path);
 				chmod($path, $this->config['txt_config']['dir_mode']);
 				$this->write("FORBIDDEN", $path . "/index.html");
-				chmod($path . "/index.html", 
+				chmod($path . "/index.html",
 					$this->config['txt_config']['file_mode']);
 			}
 
-			for($i = 1; $i <= $this->config['max_folder_depth'] - 1; $i++) 
+			for($i = 1; $i <= $this->config['max_folder_depth'] - 1; $i++)
 			{
 				$parent = $path;
-							   
+
 				if(strlen($info['filename']) > $i)
 					$path .= "/" . substr($info['filename'], $i, 1);
 
@@ -244,7 +244,7 @@ class db
 					mkdir($path);
 					chmod($path, $this->config['txt_config']['dir_mode']);
 					$this->write("FORBIDDEN", $path . "/index.html");
-					chmod($path . "/index.html", 
+					chmod($path . "/index.html",
 						$this->config['txt_config']['file_mode']);
 				}
 			}
@@ -262,11 +262,11 @@ class db
 		{
 			case "mysql":
 				$this->link = mysql_connect(
-					$this->config['mysql_connection_config']['db_host'], 
-					$this->config['mysql_connection_config']['db_uname'], 
+					$this->config['mysql_connection_config']['db_host'],
+					$this->config['mysql_connection_config']['db_uname'],
 					$this->config['mysql_connection_config']['db_pass']);
 				$result = mysql_select_db(
-					$this->config['mysql_connection_config']['db_name'], 
+					$this->config['mysql_connection_config']['db_name'],
 					$this->link);
 
 				if($this->link == FALSE || $result == FALSE)
@@ -275,8 +275,8 @@ class db
 					$output = TRUE;
 			break;
 			case "txt":
-				if(!is_writeable($this->setDataPath() . "/" 
-					. $this->config['txt_config']['db_index']) 
+				if(!is_writeable($this->setDataPath() . "/"
+					. $this->config['txt_config']['db_index'])
 					|| !is_writeable($this->setDataPath()))
 					$output = FALSE;
 				else
@@ -309,8 +309,8 @@ class db
 		{
 			case "mysql":
 				$this->connect();
-				$query = "SELECT * FROM " 
-					. $this->config['mysql_connection_config']['db_table'] 
+				$query = "SELECT * FROM "
+					. $this->config['mysql_connection_config']['db_table']
 					. " WHERE ID = '" . $id . "'";
 				$result = array();
 				$result_temp = mysql_query($query);
@@ -329,7 +329,7 @@ class db
 				if(!file_exists($this->setDataPath($id)))
 				{
 					$index = $this->deserializer($this->read(
-						$this->setDataPath() . "/" 
+						$this->setDataPath() . "/"
 						. $this->config['txt_config']['db_index']));
 
 					if(in_array($id, $index))
@@ -361,7 +361,7 @@ class db
 			if($this->dbt == "mysql")
 				$imgTemp = $imgTemp[0];
 
-			if($imgTemp['Image'] != NULL 
+			if($imgTemp['Image'] != NULL
 				&& file_exists($this->setDataPath($imgTemp['Image'])))
 				unlink($this->setDataPath($imgTemp['Image']));
 		}
@@ -370,8 +370,8 @@ class db
 		{
 			case "mysql":
 				$this->connect();
-				$query = "DELETE FROM " 
-					. $this->config['mysql_connection_config']['db_table'] 
+				$query = "DELETE FROM "
+					. $this->config['mysql_connection_config']['db_table']
 					. " WHERE ID = '" . $id . "'";
 				$result = mysql_query($query);
 			break;
@@ -379,29 +379,29 @@ class db
 				if(file_exists($this->setDataPath($id)))
 					$result = unlink($this->setDataPath($id));
 
-				$index = $this->deserializer($this->read($this->setDataPath() 
+				$index = $this->deserializer($this->read($this->setDataPath()
 					. "/" . $this->config['txt_config']['db_index']));
 
 				if(in_array($id, $index))
-					$key = array_keys($index, $id);	
+					$key = array_keys($index, $id);
 				elseif(in_array("!" . $id, $index))
 					$key = array_keys($index, "!" . $id);
 
 				$key = $key[0];
 
-				if(isset($index[$key]))	
+				if(isset($index[$key]))
 					unset($index[$key]);
 
 				$index = array_values($index);
-				$result = $this->write($this->serializer($index), 
-					$this->setDataPath() . "/" 
+				$result = $this->write($this->serializer($index),
+					$this->setDataPath() . "/"
 					. $this->config['txt_config']['db_index']);
 			break;
 		}
 
 		return $result;
 	}
-		
+
 	public function cleanHTML($input)
 	{
 		if($this->dbt == "mysql")
@@ -430,7 +430,7 @@ class db
 	{
 		if($this->dbt == "mysql")
 			$output = stripslashes($input);
-		else 
+		else
 			$output = stripslashes(stripslashes($input));
 
 		return $output;
@@ -444,12 +444,12 @@ class db
 			return false;
 
 		if($rename)
-			$path = $this->setDataPath($rename . "." 
-				. strtolower($info['extension'])); 
+			$path = $this->setDataPath($rename . "."
+				. strtolower($info['extension']));
 		else
 			$path = $path = $this->setDataPath($file['name']);
 
-		if(!in_array(strtolower($info['extension']), 
+		if(!in_array(strtolower($info['extension']),
 			$this->config['pb_image_extensions']))
 			return false;
 
@@ -458,7 +458,7 @@ class db
 
 		if(!move_uploaded_file($file['tmp_name'], $path))
 			return false;
-				
+
 		chmod($path, $this->config['txt_config']['dir_mode']);
 
 		if(!$rename)
@@ -473,34 +473,34 @@ class db
 	{
 		$info = pathinfo($img);
 
-		if(!in_array(strtolower($info['extension']), 
+		if(!in_array(strtolower($info['extension']),
 			$this->config['pb_image_extensions']))
 			return false;
 
 		if(!$this->config['pb_images'] || !$this->config['pb_download_images'])
 			return false;
 
-		if(substr($img, 0, 4) == 'http') 
+		if(substr($img, 0, 4) == 'http')
 		{
 			$x = array_change_key_case(get_headers($img, 1), CASE_LOWER);
 
-			if(strcasecmp($x[0], 'HTTP/1.1 200 OK') != 0) 
-				$x = $x['content-length'][1]; 
-			else 
-				$x = $x['content-length']; 
-		} else 
+			if(strcasecmp($x[0], 'HTTP/1.1 200 OK') != 0)
+				$x = $x['content-length'][1];
+			else
+				$x = $x['content-length'];
+		} else
 			$x = @filesize($img);
-		
+
 		$size = $x;
-		
+
 		if($size > $this->config['pb_image_maxsize'])
 			return false;
-			
+
 		$data = file_get_contents($img);
 
-		$path = $this->setDataPath($rename . "." 
+		$path = $this->setDataPath($rename . "."
 			. strtolower($info['extension']));
-		
+
 		$fopen = fopen($path, "w+");
 		fwrite($fopen, $data);
 		fclose($fopen);
@@ -519,14 +519,14 @@ class db
 		elseif($arbLifespan && $data['Lifespan'] == 0)
 			$data['Lifespan'] = 0;
 		else {
-			if((($this->config['pb_lifespan'][$data['Lifespan']] == FALSE 
-				|| $this->config['pb_lifespan'][$data['Lifespan']] == 0) 
-				&& $this->config['pb_infinity']) 
+			if((($this->config['pb_lifespan'][$data['Lifespan']] == FALSE
+				|| $this->config['pb_lifespan'][$data['Lifespan']] == 0)
+				&& $this->config['pb_infinity'])
 				|| !$this->config['pb_lifespan'])
 				$data['Lifespan'] = 0;
 			else
-				$data['Lifespan'] = time() 
-					+ ($this->config['pb_lifespan'][$data['Lifespan']] 
+				$data['Lifespan'] = time()
+					+ ($this->config['pb_lifespan'][$data['Lifespan']]
 					* 60 * 60 * 24);
 		}
 
@@ -549,41 +549,41 @@ class db
 			'Style' => $this->cleanHTML($data['Style'])
 		);
 
-		if(($paste['Protection'] > 0  && $this->config['pb_private']) 
+		if(($paste['Protection'] > 0  && $this->config['pb_private'])
 			|| ($paste['Protection'] > 0 && $arbLifespan))
 			$id = "!" . $id;
 		else
 			$paste['Protection'] = 0;
-			
+
 		switch($this->dbt)
 		{
 			case "mysql":
 				$this->connect();
-				$query = "INSERT INTO " 
-					. $this->config['mysql_connection_config']['db_table'] 
+				$query = "INSERT INTO "
+					. $this->config['mysql_connection_config']['db_table']
 					. " (ID, Subdomain, Datetime, Author, Protection,"
 					. " Encrypted, Syntax, Parent, Image, ImageTxt, URL,"
-					. " Lifespan, IP, Data, GeSHI, Style) VALUES ('" 
-					. $paste['ID'] . "', '" . $paste['Subdomain'] . "', '" 
-					. $paste['Datetime'] . "', '" . $paste['Author'] . "', " 
-					. (int)$paste['Protection'] . ", '" . $paste['Encrypted'] 
-					. "', '" . $paste['Syntax'] . "', '" . $paste['Parent'] 
-					. "', '" . $paste['Image'] . "', '" . $paste['ImageTxt'] 
-					. "', '" . $paste['URL'] . "', '" 
-					. (int)$paste['Lifespan'] . "', '" . $paste['IP'] 
-					. "', '" . $paste['Data'] . "', '" . $paste['GeSHI'] 
+					. " Lifespan, IP, Data, GeSHI, Style) VALUES ('"
+					. $paste['ID'] . "', '" . $paste['Subdomain'] . "', '"
+					. $paste['Datetime'] . "', '" . $paste['Author'] . "', "
+					. (int)$paste['Protection'] . ", '" . $paste['Encrypted']
+					. "', '" . $paste['Syntax'] . "', '" . $paste['Parent']
+					. "', '" . $paste['Image'] . "', '" . $paste['ImageTxt']
+					. "', '" . $paste['URL'] . "', '"
+					. (int)$paste['Lifespan'] . "', '" . $paste['IP']
+					. "', '" . $paste['Data'] . "', '" . $paste['GeSHI']
 					. "', '" . $paste['Style'] . "')";
 				$result = mysql_query($query);
 			break;
 			case "txt":
-				$index = $this->deserializer($this->read($this->setDataPath() 
+				$index = $this->deserializer($this->read($this->setDataPath()
 					. "/" . $this->config['txt_config']['db_index']));
 				$index[] = $id;
-				$this->write($this->serializer($index), $this->setDataPath() 
+				$this->write($this->serializer($index), $this->setDataPath()
 					. "/" . $this->config['txt_config']['db_index']);
-				$result = $this->write($this->serializer($paste), 
+				$result = $this->write($this->serializer($paste),
 					$this->setDataPath($paste['ID']));
-				chmod($this->setDataPath($paste['ID']), 
+				chmod($this->setDataPath($paste['ID']),
 					$this->config['txt_config']['file_mode']);
 			break;
 		}
@@ -596,9 +596,9 @@ class db
 		switch($this->dbt)
 		{
 			case "mysql":
-				$this->connect();							
-				$query = "SELECT * FROM " 
-					. $this->config['mysql_connection_config']['db_table'] 
+				$this->connect();
+				$query = "SELECT * FROM "
+					. $this->config['mysql_connection_config']['db_table']
 					. " WHERE ID = '" . $id . "'";
 				$result = mysql_query($query);
 				$result = mysql_num_rows($result);
@@ -609,7 +609,7 @@ class db
 					$output = FALSE;
 			break;
 			case "txt":
-				$index = $this->deserializer($this->read($this->setDataPath() 
+				$index = $this->deserializer($this->read($this->setDataPath()
 					. "/" . $this->config['txt_config']['db_index']));
 
 				if(in_array($id, $index) || in_array("!" . $id, $index))
@@ -632,9 +632,9 @@ class db
 		switch($this->dbt)
 		{
 			case "mysql":
-				$this->connect();							
-				$query = "SELECT * FROM " 
-					. $this->config['mysql_connection_config']['db_table'] 
+				$this->connect();
+				$query = "SELECT * FROM "
+					. $this->config['mysql_connection_config']['db_table']
 					. " WHERE ID <> 'subdomain' && ID <> 'forbidden'"
 					. " ORDER BY Datetime DESC LIMIT 1";
 				$result = mysql_query($query);
@@ -655,7 +655,7 @@ class db
 
 			break;
 			case "txt":
-				$index = $this->deserializer($this->read($this->setDataPath() 
+				$index = $this->deserializer($this->read($this->setDataPath()
 					. "/" . $this->config['txt_config']['db_index']));
 				$index = array_reverse($index);
 				$output = strlen(str_replace("!", NULL, $index[0]));
@@ -677,7 +677,7 @@ class bin
 	{
 		$this->db = $db;
 	}
-		
+
 	public function setTitle($config)
 	{
 		if(!$config)
@@ -714,7 +714,7 @@ class bin
 			return "index,follow";
 
 		$requri = str_replace("!", "", $requri);
-		
+
 		if($privacy = $this->db->readPaste($requri))
 		{
 			if($this->db->dbt == "mysql")
@@ -746,17 +746,17 @@ class bin
 
 		return $robot;
 	}
-		
+
 	public function thisDir()
 	{
 		$output = dirname($_SERVER['SCRIPT_FILENAME']);
 
 		return $output;
 	}
-		
+
 	public function generateID($id = FALSE, $iterations = 0)
 	{
-		$checkArray = array('install', 'api', 'defaults', 'recent', 'raw', 
+		$checkArray = array('install', 'api', 'defaults', 'recent', 'raw',
 			'moo', 'download', 'pastes', 'subdomain', 'forbidden');
 
 		if($iterations > 0 && $iterations < 4 && $id != FALSE)
@@ -769,18 +769,18 @@ class bin
 		if(!$id)
 			$id = $this->generateRandomString($this->db->getLastID());
 
-		if($id == $this->db->config['txt_config']['db_index'] 
+		if($id == $this->db->config['txt_config']['db_index']
 			|| in_array($id, $checkArray))
 			$id = $this->generateRandomString($this->db->getLastID());
 
-		if($this->db->config['pb_rewrite'] && (is_dir($id) 
+		if($this->db->config['pb_rewrite'] && (is_dir($id)
 			|| file_exists($id)))
-			$id = $this->generateID($id, $iterations + 1);	
+			$id = $this->generateID($id, $iterations + 1);
 
 		if(!$this->db->checkID($id) && !in_array($id, $checkArray))
 			return $id;
 		else
-			return $this->generateID($id, $iterations + 1);			
+			return $this->generateID($id, $iterations + 1);
 	}
 
 	public function checkAuthor($author = FALSE)
@@ -788,7 +788,7 @@ class bin
 		if($author == FALSE)
 			return $this->db->config['pb_author'];
 
-		if(preg_match('/^\s/', $author) || preg_match('/\s$/', $author) 
+		if(preg_match('/^\s/', $author) || preg_match('/\s$/', $author)
 			|| preg_match('/^\s$/', $author))
 			return $this->db->config['pb_author'];
 		else
@@ -800,7 +800,7 @@ class bin
 		if($subdomain == FALSE)
 			return FALSE;
 
-		if(preg_match('/^\s/', $subdomain) || preg_match('/\s$/', $subdomain) 
+		if(preg_match('/^\s/', $subdomain) || preg_match('/\s$/', $subdomain)
 			|| preg_match('/^\s$/', $subdomain))
 			return FALSE;
 		elseif(ctype_alnum($subdomain))
@@ -818,7 +818,7 @@ class bin
 				$this->db->connect();
 				$result = array();
 				if($this->db->config['subdomain'])
-					$whereSubdomain = " AND Subdomain='" 
+					$whereSubdomain = " AND Subdomain='"
 						. $this->db->config['subdomain']  . "'";
 				else
 					$whereSubdomain = " AND Subdomain=''";
@@ -828,16 +828,16 @@ class bin
 				else
 					$whereUser = NULL;
 
-				$query = "SELECT * FROM " 
-					. $this->db->config['mysql_connection_config']['db_table'] 
-					. " WHERE Protection < 1" . $whereSubdomain . $whereUser 
+				$query = "SELECT * FROM "
+					. $this->db->config['mysql_connection_config']['db_table']
+					. " WHERE Protection < 1" . $whereSubdomain . $whereUser
 					. " ORDER BY Datetime DESC LIMIT " . $amount;
 
 				$result_temp = mysql_query($query);
 
 				if(!$result_temp || mysql_num_rows($result_temp) < 1)
 					return NULL;
-							
+
 				while ($row = mysql_fetch_assoc($result_temp))
 					 $result[] = $row;
 
@@ -845,27 +845,27 @@ class bin
 			break;
 			case "txt":
 				$index = $this->db->deserializer($this->db->read(
-					$this->db->setDataPath() . "/" 
+					$this->db->setDataPath() . "/"
 					. $this->db->config['txt_config']['db_index']));
 				$index = array_reverse($index);
 				$int = 0;
 				$result = array();
 
 				if(count($index) > 0)
-				{ 
+				{
 					foreach($index as $row)
-					{ 
-						if($int < $amount && substr($row, 0, 1) != "!") 
-						{ 
-							$result[$int] = $this->db->readPaste($row); 
-							$int++; 
-						} elseif($int <= $amount && substr($row, 0, 1) == "!") 
-						{ 
-							$int = $int; 
-						} else { 
-							return $result; 
-						} 
-					} 
+					{
+						if($int < $amount && substr($row, 0, 1) != "!")
+						{
+							$result[$int] = $this->db->readPaste($row);
+							$int++;
+						} elseif($int <= $amount && substr($row, 0, 1) == "!")
+						{
+							$int = $int;
+						} else {
+							return $result;
+						}
+					}
 				}
 			break;
 		}
@@ -877,7 +877,7 @@ class bin
 		if($this->db->config['pb_style'] == FALSE)
 			return false;
 
-		if(preg_match("/^(http|https|ftp):\/\/(.*?)/", 
+		if(preg_match("/^(http|https|ftp):\/\/(.*?)/",
 			$this->db->config['pb_style']))
 		{
 			$headers = @get_headers($this->db->config['pb_style']);
@@ -899,7 +899,7 @@ class bin
 		if($this->db->config['pb_jQuery'] == FALSE)
 			return false;
 
-		if(preg_match("/^(http|https|ftp):\/\/(.*?)/", 
+		if(preg_match("/^(http|https|ftp):\/\/(.*?)/",
 			$this->db->config['pb_jQuery']))
 		{
 			$headers = @get_headers($this->db->config['pb_jQuery']);
@@ -948,7 +948,7 @@ class bin
 
 	public function lineHighlight()
 	{
-		if($this->db->config['pb_line_highlight'] == FALSE 
+		if($this->db->config['pb_line_highlight'] == FALSE
 			|| strlen($this->db->config['pb_line_highlight']) < 1)
 			return false;
 
@@ -956,7 +956,7 @@ class bin
 			return substr($this->db->config['pb_line_highlight'], 0, 6);
 
 		if(strlen($this->db->config['pb_line_highlight']) == 1)
-			return $this->db->config['pb_line_highlight'] 
+			return $this->db->config['pb_line_highlight']
 				. $this->db->config['pb_line_highlight'];
 
 		return $this->db->config['pb_line_highlight'];
@@ -968,9 +968,9 @@ class bin
 			return $line;
 
 		$len = strlen($this->lineHighlight());
-				
+
 		if(substr($line, 0, $len) == $this->lineHighlight())
-			$line = "<span class=\"lineHighlight\">" . substr($line, $len) 
+			$line = "<span class=\"lineHighlight\">" . substr($line, $len)
 				. "</span>";
 
 		return $line;
@@ -988,7 +988,7 @@ class bin
 		foreach($lines as $line)
 		{
 			$len = strlen($this->lineHighlight());
-			
+
 			if(substr($line, 0, $len) == $this->lineHighlight())
 				$output[] = substr($line, $len);
 			else
@@ -1015,14 +1015,14 @@ class bin
 		{
 			$n++;
 			$len = strlen($this->lineHighlight());
-				
+
 			if(substr($line, 0, $len) == $this->lineHighlight())
 				$output[] = $n;
 		}
 
 
 		return $output;
-				
+
 	}
 
 	public function _clipboard()
@@ -1037,46 +1037,46 @@ class bin
 		if(strlen($cbdir) < 2)
 			$cbdir = ".";
 
-		if(preg_match("/^(http|https|ftp):\/\/(.*?)/", 
+		if(preg_match("/^(http|https|ftp):\/\/(.*?)/",
 			$this->db->config['pb_clipboard']))
 		{
 			$headers = @get_headers($this->db->config['pb_clipboard']);
-			if (preg_match("|200|", $headers[0])) 
+			if (preg_match("|200|", $headers[0]))
 			{
 				$jsHeaders = @get_headers($cbdir . "/swfobject.js");
 				if(preg_match("|200|", $jsHeaders[0]))
 					return true;
 				else
-					return false; 
+					return false;
 			}
 			else
 				return false;
 		} else {
-			if(file_exists($this->db->config['pb_clipboard']) 
+			if(file_exists($this->db->config['pb_clipboard'])
 				&& file_exists($cbdir . "/swfobject.js"))
 				return true;
 			else
 				return false;
 		}
-				
+
 
 	}
 
 	public function generateRandomString($length)
 	{
-		$checkArray = array('install', 'api', 'defaults', 'recent', 'raw', 
+		$checkArray = array('install', 'api', 'defaults', 'recent', 'raw',
 			'moo', 'download', 'pastes', 'subdomain', 'forbidden', 0);
 
-		$characters = "0123456789abcdefghijklmnopqrstuvwxyz";  
+		$characters = "0123456789abcdefghijklmnopqrstuvwxyz";
 
 		if($this->db->config['pb_hexlike_id'])
 			$characters = "0123456789abcdefabcdef";
 
 		$output = "";
-		for ($p = 0; $p < $length; $p++) 
+		for ($p = 0; $p < $length; $p++)
 			$output .= $characters[mt_rand(0, strlen($characters))];
-					
-		if(is_bool($output) || $output == NULL || strlen($output) < $length 
+
+		if(is_bool($output) || $output == NULL || strlen($output) < $length
 			|| in_array($output, $checkArray))
 			return $this->generateRandomString($length);
 		else
@@ -1090,16 +1090,16 @@ class bin
 
 		if(!file_exists('INSTALL_LOCK'))
 			return false;
-	
+
 		switch($this->db->dbt)
 		{
 			case "mysql":
 				$this->db->connect();
 				$result = array();
-				$query = "SELECT * FROM " 
-					. $this->db->config['mysql_connection_config']['db_table'] 
-					. " WHERE Lifespan <= " . time() 
-					. " AND Lifespan > 0 ORDER BY Datetime ASC LIMIT " 
+				$query = "SELECT * FROM "
+					. $this->db->config['mysql_connection_config']['db_table']
+					. " WHERE Lifespan <= " . time()
+					. " AND Lifespan > 0 ORDER BY Datetime ASC LIMIT "
 					. $amount;
 				$result_temp = mysql_query($query);
 
@@ -1110,7 +1110,7 @@ class bin
 			break;
 			case "txt":
 				$index = $this->db->deserializer($this->db->read(
-					$this->db->setDataPath() . "/" 
+					$this->db->setDataPath() . "/"
 					. $this->db->config['txt_config']['db_index']));
 
 				if(is_array($index) && count($index) > $amount + 1)
@@ -1120,19 +1120,19 @@ class bin
 				$result = array();
 
 				if(count($index) > 0)
-				{ 
+				{
 					foreach($index as $row)
-					{ 
-						if($int < $amount) 
-						{ 
+					{
+						if($int < $amount)
+						{
 							$result[] = $this->db->readPaste(
-								str_replace("!", NULL, $row)); 
-						} else { 
-							break; 
-						} 
-						
-						$int++;	
-					} 
+								str_replace("!", NULL, $row));
+						} else {
+							break;
+						}
+
+						$int++;
+					}
 				}
 			break;
 		}
@@ -1149,19 +1149,26 @@ class bin
 		return $result;
 	}
 
+	public function expiredCheck($paste) {
+		if(gmdate('U') > $paste['Lifespan'])
+			$this->db->dropPaste($paste['ID']);
+
+		return TRUE;
+	}
+
 	public function linker($id = FALSE)
 	{
 		$dir = dirname($_SERVER['SCRIPT_NAME']);
 
 		if(strlen($dir) > 1)
-			$now = $this->db->config['pb_protocol'] . "://" 
+			$now = $this->db->config['pb_protocol'] . "://"
 				. $_SERVER['SERVER_NAME'] . $dir;
 		else
-			$now = $this->db->config['pb_protocol'] . "://" 
+			$now = $this->db->config['pb_protocol'] . "://"
 				. $_SERVER['SERVER_NAME'];
 
 		$file = basename($_SERVER['SCRIPT_NAME']);
-				
+
 		switch($this->db->config['pb_rewrite'])
 		{
 			case TRUE:
@@ -1187,7 +1194,7 @@ class bin
 			return NULL;
 
 		if($force)
-			return $this->db->config['txt_config']['db_folder'] = $this->db->config['txt_config']['db_folder'] 
+			return $this->db->config['txt_config']['db_folder'] = $this->db->config['txt_config']['db_folder']
 				. "/subdomain/" . $force;
 
 		if(!file_exists('INSTALL_LOCK'))
@@ -1202,16 +1209,16 @@ class bin
 			case "mysql":
 				$this->db->connect();
 				$subdomain_list = array();
-				$query = "SELECT * FROM " 
-					. $this->db->config['mysql_connection_config']['db_table'] 
+				$query = "SELECT * FROM "
+					. $this->db->config['mysql_connection_config']['db_table']
 					. " WHERE ID = 'forbidden' LIMIT 1";
 				$result_temp = mysql_query($query);
 
 				while($row = mysql_fetch_assoc($result_temp))
 					 $subdomain_list['forbidden'] = unserialize($row['Data']);
 
-				$query = "SELECT * FROM " 
-					. $this->db->config['mysql_connection_config']['db_table'] 
+				$query = "SELECT * FROM "
+					. $this->db->config['mysql_connection_config']['db_table']
 					. " WHERE ID = 'subdomain' AND Subdomain = '" . $sub . "'";
 				$result_temp = mysql_query($query);
 
@@ -1223,8 +1230,8 @@ class bin
 				mysql_free_result($result_temp);
 			break;
 			case "txt":
-				$subdomainsFile = $this->db->config['txt_config']['db_folder'] 
-					. "/" . $this->db->config['txt_config']['db_index'] 
+				$subdomainsFile = $this->db->config['txt_config']['db_folder']
+					. "/" . $this->db->config['txt_config']['db_index']
 					. "_SUBDOMAINS";
 				$subdomain_list = $this->db->deserializer(
 					$this->db->read($subdomainsFile));
@@ -1234,12 +1241,12 @@ class bin
 
 		if(!in_array($sub, $subdomain_list['forbidden']) && $in_list)
 		{
-			$this->db->config['txt_config']['db_folder'] = $this->db->config['txt_config']['db_folder'] 
+			$this->db->config['txt_config']['db_folder'] = $this->db->config['txt_config']['db_folder']
 				. "/subdomain/" . $sub;
 
 			return $sub;
 		} else
-			return NULL;				
+			return NULL;
 	}
 
 	public function makeSubdomain($subdomain)
@@ -1257,17 +1264,17 @@ class bin
 			case "mysql":
 				$this->db->connect();
 				$subdomain_list = array();
-				$query = "SELECT * FROM " 
-					. $this->db->config['mysql_connection_config']['db_table'] 
+				$query = "SELECT * FROM "
+					. $this->db->config['mysql_connection_config']['db_table']
 					. " WHERE ID = 'forbidden' LIMIT 1";
 				$result_temp = mysql_query($query);
 
 				while($row = mysql_fetch_assoc($result_temp))
 					 $subdomain_list['forbidden'] = unserialize($row['Data']);
 
-				$query = "SELECT * FROM " 
-					. $this->db->config['mysql_connection_config']['db_table'] 
-					. " WHERE ID = 'subdomain' AND Subdomain = '" 
+				$query = "SELECT * FROM "
+					. $this->db->config['mysql_connection_config']['db_table']
+					. " WHERE ID = 'subdomain' AND Subdomain = '"
 					. $subdomain . "'";
 				$result_temp = mysql_query($query);
 
@@ -1279,8 +1286,8 @@ class bin
 				mysql_free_result($result_temp);
 			break;
 			case "txt":
-				$subdomainsFile = $this->db->config['txt_config']['db_folder'] 
-					. "/" . $this->db->config['txt_config']['db_index'] 
+				$subdomainsFile = $this->db->config['txt_config']['db_folder']
+					. "/" . $this->db->config['txt_config']['db_index']
 					. "_SUBDOMAINS";
 				$subdomain_list = $this->db->deserializer(
 					$this->db->read($subdomainsFile));
@@ -1293,41 +1300,41 @@ class bin
 			switch($this->db->dbt)
 			{
 				case "mysql":
-					$domain = array('ID' => "subdomain", 
-						'Subdomain' => $subdomain, 
-						'Image' => 1, 
-						'Author' => "System", 
-						'Protect' => 1, 
-						'Lifespan' => 0, 
+					$domain = array('ID' => "subdomain",
+						'Subdomain' => $subdomain,
+						'Image' => 1,
+						'Author' => "System",
+						'Protect' => 1,
+						'Lifespan' => 0,
 						'Content' => "Subdomain marker");
 					$this->db->insertPaste($domain['ID'], $domain, TRUE);
-					mkdir($this->db->config['txt_config']['db_folder'] 
+					mkdir($this->db->config['txt_config']['db_folder']
 						. "/subdomain/" . $subdomain);
-					chmod($this->db->config['txt_config']['db_folder'] 
-						. "/subdomain/" . $subdomain, 
+					chmod($this->db->config['txt_config']['db_folder']
+						. "/subdomain/" . $subdomain,
 						$this->db->config['txt_config']['dir_mode']);
-					mkdir($this->db->config['txt_config']['db_folder'] 
-						. "/subdomain/" . $subdomain . "/" 
+					mkdir($this->db->config['txt_config']['db_folder']
+						. "/subdomain/" . $subdomain . "/"
 						. $this->db->config['txt_config']['db_images']);
-					chmod($this->db->config['txt_config']['db_folder'] 
-						. "/subdomain/" . $subdomain . "/" 
-						. $this->db->config['txt_config']['db_images'], 
+					chmod($this->db->config['txt_config']['db_folder']
+						. "/subdomain/" . $subdomain . "/"
+						. $this->db->config['txt_config']['db_images'],
 						$this->db->config['txt_config']['dir_mode']);
-					$this->db->write("FORBIDDEN", 
-						$this->db->config['txt_config']['db_folder'] 
+					$this->db->write("FORBIDDEN",
+						$this->db->config['txt_config']['db_folder']
 						. "/subdomain/" . $subdomain . "/index.html");
-					chmod($this->db->config['txt_config']['db_folder'] 
-						. "/subdomain/" . $subdomain . "/index.html", 
+					chmod($this->db->config['txt_config']['db_folder']
+						. "/subdomain/" . $subdomain . "/index.html",
 						$this->db->config['txt_config']['dir_mode']);
-					$this->db->write("FORIDDEN", 
-						$this->db->config['txt_config']['db_folder'] 
-						. "/subdomain/" . $subdomain . "/" 
-						. $this->db->config['txt_config']['db_images'] 
+					$this->db->write("FORIDDEN",
+						$this->db->config['txt_config']['db_folder']
+						. "/subdomain/" . $subdomain . "/"
+						. $this->db->config['txt_config']['db_images']
 						. "/index.html");
-					chmod($this->db->config['txt_config']['db_folder'] 
-						. "/subdomain/" . $subdomain . "/" 
-						. $this->db->config['txt_config']['db_images'] 
-						. "/index.html", 
+					chmod($this->db->config['txt_config']['db_folder']
+						. "/subdomain/" . $subdomain . "/"
+						. $this->db->config['txt_config']['db_images']
+						. "/index.html",
 						$this->db->config['txt_config']['file_mode']);
 
 					return $subdomain;
@@ -1337,48 +1344,48 @@ class bin
 					$subdomain_list = $this->db->serializer($subdomain_list);
 					$this->db->write($subdomain_list, $subdomainsFile);
 					$subdomain = $subdomain;
-					mkdir($this->db->config['txt_config']['db_folder'] 
+					mkdir($this->db->config['txt_config']['db_folder']
 						. "/subdomain/" . $subdomain);
-					chmod($this->db->config['txt_config']['db_folder'] 
-						. "/subdomain/" . $subdomain, 
+					chmod($this->db->config['txt_config']['db_folder']
+						. "/subdomain/" . $subdomain,
 						$this->db->config['txt_config']['dir_mode']);
-					mkdir($this->db->config['txt_config']['db_folder'] 
-						. "/subdomain/" . $subdomain . "/" 
+					mkdir($this->db->config['txt_config']['db_folder']
+						. "/subdomain/" . $subdomain . "/"
 						. $this->db->config['txt_config']['db_images']);
-					chmod($this->db->config['txt_config']['db_folder'] 
-						. "/subdomain/" . $subdomain . "/" 
-						. $this->db->config['txt_config']['db_images'], 
+					chmod($this->db->config['txt_config']['db_folder']
+						. "/subdomain/" . $subdomain . "/"
+						. $this->db->config['txt_config']['db_images'],
 						$this->db->config['txt_config']['dir_mode']);
-					$this->db->write("FORBIDDEN", 
-						$this->db->config['txt_config']['db_folder'] 
+					$this->db->write("FORBIDDEN",
+						$this->db->config['txt_config']['db_folder']
 						. "/subdomain/" . $subdomain . "/index.html");
-					chmod($this->db->config['txt_config']['db_folder'] 
-						. "/subdomain/" . $subdomain . "/index.html", 
+					chmod($this->db->config['txt_config']['db_folder']
+						. "/subdomain/" . $subdomain . "/index.html",
 						$this->db->config['txt_config']['dir_mode']);
-					$this->db->write($this->db->serializer(array()), 
-						$this->db->config['txt_config']['db_folder'] 
-						. "/subdomain/" . $subdomain . "/" 
+					$this->db->write($this->db->serializer(array()),
+						$this->db->config['txt_config']['db_folder']
+						. "/subdomain/" . $subdomain . "/"
 						. $this->db->config['txt_config']['db_index']);
-					chmod($this->db->config['txt_config']['db_folder'] 
-						. "/subdomain/" . $subdomain . "/" 
-						. $this->db->config['txt_config']['db_index'], 
+					chmod($this->db->config['txt_config']['db_folder']
+						. "/subdomain/" . $subdomain . "/"
+						. $this->db->config['txt_config']['db_index'],
 						$this->db->config['txt_config']['file_mode']);
-					$this->db->write("FORIDDEN", 
-						$this->db->config['txt_config']['db_folder'] 
-						. "/subdomain/" . $subdomain . "/" 
-						. $this->db->config['txt_config']['db_images'] 
+					$this->db->write("FORIDDEN",
+						$this->db->config['txt_config']['db_folder']
+						. "/subdomain/" . $subdomain . "/"
+						. $this->db->config['txt_config']['db_images']
 						. "/index.html");
-					chmod($this->db->config['txt_config']['db_folder'] 
-						. "/subdomain/" . $subdomain . "/" 
-						. $this->db->config['txt_config']['db_images'] 
-						. "/index.html", 
+					chmod($this->db->config['txt_config']['db_folder']
+						. "/subdomain/" . $subdomain . "/"
+						. $this->db->config['txt_config']['db_images']
+						. "/index.html",
 						$this->db->config['txt_config']['file_mode']);
 
 					return $subdomain;
 				break;
 			}
 		} else
-			return FALSE;				
+			return FALSE;
 	}
 
 	public function generateForbiddenSubdomains($mysql = FALSE)
@@ -1412,21 +1419,21 @@ class bin
 		if($salts)
 		{
 			$hashedSalt = array(NULL, NULL);
-						
+
 			for($i = 0; $i < strlen(max($salts)) ; $i++)
 			{
 				$hashedSalt[0] .= $salts[1][$i] . $salts[3][$i];
 				$hashedSalt[1] .= $salts[2][$i] . $salts[4][$i];
 			}
 
-			$hashedSalt[0] = hash($this->db->config['pb_algo'], 
+			$hashedSalt[0] = hash($this->db->config['pb_algo'],
 				$hashedSalt[0]);
-			$hashedSalt[1] = hash($this->db->config['pb_algo'], 
+			$hashedSalt[1] = hash($this->db->config['pb_algo'],
 				$hashedSalt[1]);
 		}
 
 		if(is_array($hashedSalt))
-			$output = hash($this->db->config['pb_algo'], $hashedSalt[0] 
+			$output = hash($this->db->config['pb_algo'], $hashedSalt[0]
 				. $string . $hashedSalt[1]);
 		else
 			$output = hash($this->db->config['pb_algo'], $string);
@@ -1441,8 +1448,8 @@ class bin
 
 		$key = md5($this->hasher($key, $this->db->config['pb_salts']));
 
-		return base64_encode(trim(mcrypt_encrypt(MCRYPT_RIJNDAEL_256, $key, 
-			base64_encode($string), MCRYPT_MODE_ECB, $mc_iv)));		
+		return base64_encode(trim(mcrypt_encrypt(MCRYPT_RIJNDAEL_256, $key,
+			base64_encode($string), MCRYPT_MODE_ECB, $mc_iv)));
 	}
 
 	public function decrypt($cryptstring, $key)
@@ -1452,16 +1459,16 @@ class bin
 
 		$key = md5($this->hasher($key, $this->db->config['pb_salts']));
 
-		return base64_decode(trim(mcrypt_decrypt(MCRYPT_RIJNDAEL_256, $key, 
-			$cryptstring, MCRYPT_MODE_ECB, $mc_iv)));	
+		return base64_decode(trim(mcrypt_decrypt(MCRYPT_RIJNDAEL_256, $key,
+			$cryptstring, MCRYPT_MODE_ECB, $mc_iv)));
 	}
 
 	public function testDecrypt($checkstring, $key)
 	{
-		if($this->db->config['pb_encryption_checkphrase'] 
+		if($this->db->config['pb_encryption_checkphrase']
 			== $this->decrypt($checkstring, $key))
 			return TRUE;
-		else 
+		else
 			return FALSE;
 	}
 
@@ -1475,37 +1482,37 @@ class bin
    			array(60 , "minutes"),
 			array(1 , "seconds"),
    		);
-    
+
    		$now = gmdate('U');
    		$difference = $now - $time;
-	
-    
-		for($i = 0, $n = count($context); $i < $n; $i++) 
+
+
+		for($i = 0, $n = count($context); $i < $n; $i++)
 		{
         	$seconds = $context[$i][0];
         	$name = $context[$i][1];
-        
-			if(($count = floor($difference / $seconds)) > 0) 
+
+			if(($count = floor($difference / $seconds)) > 0)
            		break;
     	}
-    
-		$print = ($count == 1) ? '1 ' . substr($name, 0, -1) : $count . " " 
+
+		$print = ($count == 1) ? '1 ' . substr($name, 0, -1) : $count . " "
 			. $name;
-				
+
 		if($single)
 			return $print;
-    
-		if($i + 1 < $n) 
+
+		if($i + 1 < $n)
 		{
   			$seconds2 = $context[$i + 1][0];
     		$name2 = $context[$i + 1][1];
-        
-			if (($count2 = floor(($difference - ($seconds * $count)) 
-				/ $seconds2)) > 0) 
-				$print .= ($count2 == 1) ? ' 1 ' . substr($name2, 0, -1) : " " 
+
+			if (($count2 = floor(($difference - ($seconds * $count))
+				/ $seconds2)) > 0)
+				$print .= ($count2 == 1) ? ' 1 ' . substr($name2, 0, -1) : " "
 					. $count2 . " " . $name2;
     	}
-	
+
    		return $print;
 	}
 
@@ -1534,25 +1541,25 @@ class bin
 			return false;
 	}
 
-	public function humanReadableFilesize($size) 
+	public function humanReadableFilesize($size)
 	{
  		// Snippet from: http://www.jonasjohn.de/snippets/php/readable-filesize.htm
  		$mod = 1024;
- 
+
    		$units = explode(' ', 'b Kb Mb Gb Tb Pb');
 
 		for($i = 0; $size > $mod; $i++)
        		$size /= $mod;
- 
+
 		return round($size, 2) . ' ' . $units[$i];
 	}
 
-	public function stristr_array($haystack, $needle) 
+	public function stristr_array($haystack, $needle)
 	{
 		if(!is_array($needle))
 			return false;
 
-		foreach($needle as $element) 
+		foreach($needle as $element)
 		{
 			if(stristr($haystack, $element))
 				return $element;
@@ -1565,17 +1572,17 @@ class bin
 	{
 		if($generate == TRUE)
 		{
-			$output = strtoupper(sha1(md5((int)date("G") 
-				. $_SERVER['REMOTE_ADDR'] . $this->db->config['pb_pass'] 
-				. $_SERVER['SERVER_ADDR']. $_SERVER['HTTP_USER_AGENT'] 
+			$output = strtoupper(sha1(md5((int)date("G")
+				. $_SERVER['REMOTE_ADDR'] . $this->db->config['pb_pass']
+				. $_SERVER['SERVER_ADDR']. $_SERVER['HTTP_USER_AGENT']
 				. $_SERVER['SCRIPT_FILENAME'])));
 
 			return $output;
 		}
 
 		$time = array(
-			((int)date("G") - 1), 
-			((int)date("G")), 
+			((int)date("G") - 1),
+			((int)date("G")),
 			((int)date("G") + 1));
 
 		if((int)date("G") == 23)
@@ -1584,15 +1591,15 @@ class bin
 		if((int)date("G") == 0)
 			$time[0] = 23;
 
-		$output = array(strtoupper(sha1(md5($time[0] . $_SERVER['REMOTE_ADDR'] 
-				. $this->db->config['pb_pass'] . $_SERVER['SERVER_ADDR'] 
+		$output = array(strtoupper(sha1(md5($time[0] . $_SERVER['REMOTE_ADDR']
+				. $this->db->config['pb_pass'] . $_SERVER['SERVER_ADDR']
 				. $_SERVER['HTTP_USER_AGENT'] . $_SERVER['SCRIPT_FILENAME']))),
-			strtoupper(sha1(md5($time[1] . $_SERVER['REMOTE_ADDR'] 
-				. $this->db->config['pb_pass'] . $_SERVER['SERVER_ADDR'] 
+			strtoupper(sha1(md5($time[1] . $_SERVER['REMOTE_ADDR']
+				. $this->db->config['pb_pass'] . $_SERVER['SERVER_ADDR']
 				. $_SERVER['HTTP_USER_AGENT'] . $_SERVER['SCRIPT_FILENAME']))),
-			strtoupper(sha1(md5($time[2] . $_SERVER['REMOTE_ADDR'] 
-				. $this->db->config['pb_pass'] . $_SERVER['SERVER_ADDR'] 
-				. $_SERVER['HTTP_USER_AGENT'] 
+			strtoupper(sha1(md5($time[2] . $_SERVER['REMOTE_ADDR']
+				. $this->db->config['pb_pass'] . $_SERVER['SERVER_ADDR']
+				. $_SERVER['HTTP_USER_AGENT']
 				. $_SERVER['SCRIPT_FILENAME']))));
 
 		return $output;
@@ -1600,8 +1607,8 @@ class bin
 
 	public function cookieName()
 	{
-		$output = strtoupper(sha1(str_rot13(md5($_SERVER['REMOTE_ADDR'] 
-			. $_SERVER['SERVER_ADDR'] . $_SERVER['HTTP_USER_AGENT'] 
+		$output = strtoupper(sha1(str_rot13(md5($_SERVER['REMOTE_ADDR']
+			. $_SERVER['SERVER_ADDR'] . $_SERVER['HTTP_USER_AGENT']
 			. $_SERVER['SCRIPT_FILENAME']))));
 
 		return $output;
@@ -1649,7 +1656,7 @@ if(file_exists('./INSTALL_LOCK') && @$_POST['subdomain']
 		$CONFIG['pb_protocol_fix'] = $CONFIG['pb_protocol'];
 
 	if($seed)
-		header("Location: " . str_replace($CONFIG['pb_protocol'] . "://", 
+		header("Location: " . str_replace($CONFIG['pb_protocol'] . "://",
 			$CONFIG['pb_protocol_fix'] . "://" . $seed . ".", $bin->linker()));
 	else
 		$error_subdomain = TRUE;
@@ -1662,7 +1669,7 @@ $bin->db->config['subdomain'] = $CONFIG['subdomain'];
 $ckey = $bin->cookieName();
 
 if(@$_POST['author'] && is_numeric($CONFIG['pb_author_cookie']))
-	setcookie($ckey, $bin->checkAuthor(@$_POST['author']), 
+	setcookie($ckey, $bin->checkAuthor(@$_POST['author']),
 		time() + $CONFIG['pb_author_cookie']);
 
 $CONFIG['_temp_pb_author'] = $_COOKIE[$ckey];
@@ -1695,25 +1702,25 @@ if($bin->highlight())
 	$highlighterContainer = '<div id="highlightContainer">
 		<label for="highlighter">Syntax Highlighting</label>
 		<select name="highlighter">
-			<option value="plaintext">None</option> 
-			<option value="plaintext">-------------</option> 
-			<option value="bash">Bash</option> 
-			<option value="c">C</option> 
-			<option value="cpp">C++</option> 
-			<option value="css">CSS</option> 
-			<option value="html4strict">HTML</option> 
-			<option value="java">Java</option> 
-			<option value="javascript">Javascript</option> 
-			<option value="jquery">jQuery</option> 
-			<option value="mirc">mIRC Scripting</option> 
-			<option value="perl">Perl</option> 
-			<option value="php">PHP</option> 
+			<option value="plaintext">None</option>
+			<option value="plaintext">-------------</option>
+			<option value="bash">Bash</option>
+			<option value="c">C</option>
+			<option value="cpp">C++</option>
+			<option value="css">CSS</option>
+			<option value="html4strict">HTML</option>
+			<option value="java">Java</option>
+			<option value="javascript">Javascript</option>
+			<option value="jquery">jQuery</option>
+			<option value="mirc">mIRC Scripting</option>
+			<option value="perl">Perl</option>
+			<option value="php">PHP</option>
 			<option value="python">Python</option>
-			<option value="rails">Rails</option> 
-			<option value="ruby">Ruby</option> 
-			<option value="sql">SQL</option> 
-			<option value="xml">XML</option> 
-			<option value="plaintext">-------------</option> 
+			<option value="rails">Rails</option>
+			<option value="ruby">Ruby</option>
+			<option value="sql">SQL</option>
+			<option value="xml">XML</option>
+			<option value="plaintext">-------------</option>
 			<option value="4cs">GADV 4CS</option>
 			<option value="abap">ABAP</option>
 			<option value="actionscript">ActionScript</option>
@@ -1960,7 +1967,7 @@ if($requri == "pastes")
 		$userPastes = $bin->getLastPosts(200, urldecode($reqhash));
 
 		foreach($userPastes as $upaste)
-			echo "<a href=\"" . $bin->linker($upaste['ID']) . "\">" 
+			echo "<a href=\"" . $bin->linker($upaste['ID']) . "\">"
 			. $upaste['ID'] . "</a> ";
 
 		die();
@@ -1973,74 +1980,74 @@ if($requri == "defaults")
 	if($reqhash == "moo")
 	{
 		$ee_image = ""
-		. "\x89\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\x52" 
-		. "\x00\x00\x00\x10\x00\x00\x00\x12\x08\x06\x00\x00\x00\x52\x3b\x5e" 
-		. "\x6a\x00\x00\x00\x01\x73\x52\x47\x42\x00\xae\xce\x1c\xe9\x00\x00" 
-		. "\x00\x06\x62\x4b\x47\x44\x00\xff\x00\xff\x00\xff\xa0\xbd\xa7\x93" 
-		. "\x00\x00\x00\x09\x70\x48\x59\x73\x00\x00\x20\x88\x00\x00\x20\x88" 
-		. "\x01\x1c\x2c\xed\x2e\x00\x00\x00\x07\x74\x49\x4d\x45\x07\xdb\x04" 
-		. "\x1c\x12\x1f\x15\xe4\x47\x95\xc0\x00\x00\x03\xc3\x49\x44\x41\x54" 
-		. "\x38\xcb\x4d\x54\x4d\x48\x63\x67\x14\x3d\x9f\x2f\x2f\x26\xf1\x2f" 
-		. "\xf1\x07\x5b\x62\xd3\xf8\x43\x8c\x71\x30\x15\xac\x35\x45\xa1\xd8" 
-		. "\xa6\x32\x0a\x96\x41\x44\x2c\x15\x05\xa9\xff\x53\x28\x83\x82\xab" 
-		. "\xa2\xbb\x81\x52\x5d\x29\xf8\x0b\x53\x43\xa4\x31\x2d\x6a\x22\x0a" 
-		. "\x62\x90\x52\x44\x5c\x59\x29\x28\xb6\x82\x4e\x63\x47\x7d\x36\x9a" 
-		. "\x4c\x92\xa7\xc9\x7b\xb7\xab\x58\xcf\xea\x2e\xce\xb9\xdc\x7b\x0e" 
-		. "\xf7\x02\xff\xa3\x28\x2f\x2f\x6f\x1d\xc0\x27\xfd\xfd\xfd\xe3\x8b" 
-		. "\x8b\x8b\x7f\x79\x3c\x9e\xfb\x8d\x8d\x8d\xd8\xe8\xe8\xe8\x59\x51" 
-		. "\x51\xd1\x1c\x80\x4f\xf5\x7a\xbd\x17\x40\xd9\x83\xaa\xaf\xaf\xef" 
-		. "\xa1\x36\x18\x0c\x54\x52\x52\x42\x8f\x21\x49\x12\x39\x9d\x4e\xb2" 
-		. "\xdb\xed\x64\x36\x9b\xc9\x68\x34\x52\x82\x4f\x44\x50\x4c\x4c\x4c" 
-		. "\xa0\xa2\xa2\x62\xb0\xb7\xb7\xf7\xa5\x46\xa3\x81\x5a\xad\x26\x00" 
-		. "\x2c\xc1\x69\x69\x69\x61\x91\x48\x04\xa9\xa9\xa9\xa4\x56\xab\x31" 
-		. "\x3c\x3c\xcc\x00\xd0\xd2\xd2\xd2\x0f\x8c\xb1\x17\xec\xe9\xd3\xa7" 
-		. "\xbf\xae\xad\xad\x55\xdf\xdf\xdf\x43\xa9\x54\x12\x00\xb8\x5c\x2e" 
-		. "\x26\x8a\x22\xea\xeb\xeb\x69\x6c\x6c\x8c\x1d\x1e\x1e\x02\x00\x5d" 
-		. "\x5d\x5d\xb1\xed\xed\x6d\x8a\xc5\x62\xe0\x79\x9e\x75\x77\x77\xbf" 
-		. "\x46\x56\x56\xd6\x3b\x00\xbe\x1b\x19\x19\x21\x22\x22\xb7\xdb\x2d" 
-		. "\xdf\xdd\xdd\x11\x11\x91\xc3\xe1\x90\x27\x27\x27\x13\xdb\xc8\x53" 
-		. "\x53\x53\x44\x44\xf2\xcc\xcc\x0c\x01\x98\xe2\x79\xfe\xbd\xa4\xeb" 
-		. "\xeb\xeb\x37\x0b\x0b\x0b\xcf\x2d\x16\x0b\x00\x50\x28\x14\x82\x52" 
-		. "\xa9\x24\xbd\x5e\x4f\x99\x99\x99\x88\x44\x22\x64\xb5\x5a\x09\x00" 
-		. "\x22\x91\x08\x01\x40\x61\x61\x21\x5a\x5b\x5b\xbf\x8e\xc5\x62\xaf" 
-		. "\x39\x9d\x4e\xf7\xa5\xc3\xe1\xf8\x6a\x77\x77\x97\xca\xcb\xcb\x59" 
-		. "\x41\x41\x01\x66\x66\x66\x58\x57\x57\x17\xe3\x38\x0e\x55\x55\x55" 
-		. "\xcc\x6c\x36\xb3\xbd\xbd\x3d\xd4\xd5\xd5\x31\xad\x56\x0b\x9f\xcf" 
-		. "\x87\x93\x93\x13\x26\x08\x02\x43\x6d\x6d\xed\x4a\x2c\x16\xa3\xe9" 
-		. "\xe9\xe9\x87\x51\x1f\x85\x20\x3f\x4a\x43\x26\x22\x8a\x46\xa3\x72" 
-		. "\x5b\x5b\x1b\x11\x11\x4d\x4e\x4e\xfe\xa1\x08\x04\x02\x1f\x0c\x0e" 
-		. "\x0e\xa2\xa3\xa3\x03\x5e\xaf\x17\x0d\x0d\x0d\x0c\x00\x5e\xcd\xce" 
-		. "\x23\x25\x2c\xb1\xa4\x24\x0e\xff\xc4\x42\xe8\xfb\xf6\x1b\x16\x8f" 
-		. "\xc7\xe1\x72\xb9\x98\xd9\x6c\x06\x00\xe2\x38\xce\xa2\xe0\x79\x3e" 
-		. "\x5d\x10\x04\x58\xad\x56\x38\x9d\x4e\xa4\xa7\xa5\x21\x74\x1b\x44" 
-		. "\xcd\xbb\xc5\x98\x70\x2f\xe0\xc3\x27\x56\x54\x1b\x4a\x30\xfe\xf2" 
-		. "\x7b\x14\x97\x95\x62\x6b\x6b\x0b\xf3\xf3\xf3\x00\xc0\xf6\xf6\xf6" 
-		. "\x88\x33\x18\x0c\x3d\xe1\x70\x58\xab\xd5\x6a\x31\x30\x30\x40\x73" 
-		. "\x73\x73\xf8\x65\xd1\x85\xf6\x2f\x9a\x99\x2e\x23\x83\x32\x33\xb4" 
-		. "\x20\x99\xe0\x70\xff\x84\xab\x60\x00\xf5\xf5\xf5\x70\x38\x1c\xcc" 
-		. "\xed\x76\xd3\xfa\xfa\x3a\x63\x3d\x3d\x3d\x3f\x9b\x4c\xa6\x67\x5e" 
-		. "\xaf\x17\x9b\x9b\x9b\xf0\xfb\xfd\x54\x5d\x53\xc3\xd2\x93\xd5\xb0" 
-		. "\x7f\x54\x43\xc9\xca\x64\x76\xfa\xef\x1b\x54\x54\xdb\xa8\xb3\xb3" 
-		. "\x93\xcd\xce\xce\x92\xcf\xe7\x63\x82\x20\xe0\xe2\xe2\x62\x1f\x00" 
-		. "\x9e\xf9\x7c\x3e\x0a\x06\x83\x09\xc3\xe4\x9b\x9b\x1b\x1a\x1a\x1a" 
-		. "\x22\x4b\x69\xa9\x6c\x79\x52\x4a\xc7\xc7\x7f\x52\x34\x1a\x95\x89" 
-		. "\x88\x2e\x2f\x2f\xe5\xb2\xb2\x32\xb9\xb2\xb2\x92\x74\x3a\xdd\x30" 
-		. "\x07\xe0\x90\x88\x9e\x67\x67\x67\x6b\xf4\x7a\x3d\x29\x14\x0a\xa8" 
-		. "\x54\x2a\xd8\xed\x76\x76\x76\x7a\x8a\xb7\xa1\xb7\x38\x38\xf8\x1d" 
-		. "\x4d\x4d\x4d\x00\x80\x83\x83\x03\xac\xae\xae\xb2\x70\x38\x0c\xbf" 
-		. "\xdf\xff\x19\x07\x00\xfb\xfb\xfb\x3f\x9a\x4c\xa6\x17\xd1\x68\x94" 
-		. "\x05\x83\x41\xa4\xa4\xa4\x40\xa5\x52\x31\x9b\xcd\x86\xe3\xe3\x63" 
-		. "\xb4\xb7\xb7\xe3\xf6\xf6\x16\x3b\x3b\x3b\x00\x00\x8f\xc7\xc3\x8e" 
-		. "\x8e\x8e\x3e\x06\xf0\x37\x94\x4a\x65\xe2\xb8\x4c\x2d\x2d\x2d\x54" 
-		. "\x5c\x5c\x4c\xb9\xb9\xb9\x64\xb3\xd9\x68\x79\x79\x59\xde\xd8\xd8" 
-		. "\xa0\xe6\xe6\x66\x32\x1a\x8d\x72\x7e\x7e\x3e\x35\x36\x36\x92\x46" 
-		. "\xa3\xf9\x1c\x00\x14\x0a\x05\x38\x49\x92\x12\x0d\xee\x25\x49\x1a" 
-		. "\x16\x45\x11\x39\x39\x39\x88\xc7\xe3\x74\x7e\x7e\xce\x34\x1a\x0d" 
-		. "\x56\x56\x56\x48\xa7\xd3\x31\x41\x10\xc0\x18\xc3\xd9\xd9\xd9\x2b" 
-		. "\x00\x27\xb2\x2c\x23\xe9\xd1\x43\x79\x9f\xe3\x38\x04\x02\x01\x92" 
-		. "\x65\x19\x92\x24\xb1\xad\xad\xad\xdf\x46\x47\x47\xc7\x79\x9e\x67" 
-		. "\x92\x24\x91\x28\x8a\x10\x45\x11\x69\x69\x69\x85\x09\xd1\x7f\x88" 
-		. "\xc0\x07\x0e\x24\x81\x53\x98\x00\x00\x00\x00\x49\x45\x4e\x44\xae" 
+		. "\x89\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\x52"
+		. "\x00\x00\x00\x10\x00\x00\x00\x12\x08\x06\x00\x00\x00\x52\x3b\x5e"
+		. "\x6a\x00\x00\x00\x01\x73\x52\x47\x42\x00\xae\xce\x1c\xe9\x00\x00"
+		. "\x00\x06\x62\x4b\x47\x44\x00\xff\x00\xff\x00\xff\xa0\xbd\xa7\x93"
+		. "\x00\x00\x00\x09\x70\x48\x59\x73\x00\x00\x20\x88\x00\x00\x20\x88"
+		. "\x01\x1c\x2c\xed\x2e\x00\x00\x00\x07\x74\x49\x4d\x45\x07\xdb\x04"
+		. "\x1c\x12\x1f\x15\xe4\x47\x95\xc0\x00\x00\x03\xc3\x49\x44\x41\x54"
+		. "\x38\xcb\x4d\x54\x4d\x48\x63\x67\x14\x3d\x9f\x2f\x2f\x26\xf1\x2f"
+		. "\xf1\x07\x5b\x62\xd3\xf8\x43\x8c\x71\x30\x15\xac\x35\x45\xa1\xd8"
+		. "\xa6\x32\x0a\x96\x41\x44\x2c\x15\x05\xa9\xff\x53\x28\x83\x82\xab"
+		. "\xa2\xbb\x81\x52\x5d\x29\xf8\x0b\x53\x43\xa4\x31\x2d\x6a\x22\x0a"
+		. "\x62\x90\x52\x44\x5c\x59\x29\x28\xb6\x82\x4e\x63\x47\x7d\x36\x9a"
+		. "\x4c\x92\xa7\xc9\x7b\xb7\xab\x58\xcf\xea\x2e\xce\xb9\xdc\x7b\x0e"
+		. "\xf7\x02\xff\xa3\x28\x2f\x2f\x6f\x1d\xc0\x27\xfd\xfd\xfd\xe3\x8b"
+		. "\x8b\x8b\x7f\x79\x3c\x9e\xfb\x8d\x8d\x8d\xd8\xe8\xe8\xe8\x59\x51"
+		. "\x51\xd1\x1c\x80\x4f\xf5\x7a\xbd\x17\x40\xd9\x83\xaa\xaf\xaf\xef"
+		. "\xa1\x36\x18\x0c\x54\x52\x52\x42\x8f\x21\x49\x12\x39\x9d\x4e\xb2"
+		. "\xdb\xed\x64\x36\x9b\xc9\x68\x34\x52\x82\x4f\x44\x50\x4c\x4c\x4c"
+		. "\xa0\xa2\xa2\x62\xb0\xb7\xb7\xf7\xa5\x46\xa3\x81\x5a\xad\x26\x00"
+		. "\x2c\xc1\x69\x69\x69\x61\x91\x48\x04\xa9\xa9\xa9\xa4\x56\xab\x31"
+		. "\x3c\x3c\xcc\x00\xd0\xd2\xd2\xd2\x0f\x8c\xb1\x17\xec\xe9\xd3\xa7"
+		. "\xbf\xae\xad\xad\x55\xdf\xdf\xdf\x43\xa9\x54\x12\x00\xb8\x5c\x2e"
+		. "\x26\x8a\x22\xea\xeb\xeb\x69\x6c\x6c\x8c\x1d\x1e\x1e\x02\x00\x5d"
+		. "\x5d\x5d\xb1\xed\xed\x6d\x8a\xc5\x62\xe0\x79\x9e\x75\x77\x77\xbf"
+		. "\x46\x56\x56\xd6\x3b\x00\xbe\x1b\x19\x19\x21\x22\x22\xb7\xdb\x2d"
+		. "\xdf\xdd\xdd\x11\x11\x91\xc3\xe1\x90\x27\x27\x27\x13\xdb\xc8\x53"
+		. "\x53\x53\x44\x44\xf2\xcc\xcc\x0c\x01\x98\xe2\x79\xfe\xbd\xa4\xeb"
+		. "\xeb\xeb\x37\x0b\x0b\x0b\xcf\x2d\x16\x0b\x00\x50\x28\x14\x82\x52"
+		. "\xa9\x24\xbd\x5e\x4f\x99\x99\x99\x88\x44\x22\x64\xb5\x5a\x09\x00"
+		. "\x22\x91\x08\x01\x40\x61\x61\x21\x5a\x5b\x5b\xbf\x8e\xc5\x62\xaf"
+		. "\x39\x9d\x4e\xf7\xa5\xc3\xe1\xf8\x6a\x77\x77\x97\xca\xcb\xcb\x59"
+		. "\x41\x41\x01\x66\x66\x66\x58\x57\x57\x17\xe3\x38\x0e\x55\x55\x55"
+		. "\xcc\x6c\x36\xb3\xbd\xbd\x3d\xd4\xd5\xd5\x31\xad\x56\x0b\x9f\xcf"
+		. "\x87\x93\x93\x13\x26\x08\x02\x43\x6d\x6d\xed\x4a\x2c\x16\xa3\xe9"
+		. "\xe9\xe9\x87\x51\x1f\x85\x20\x3f\x4a\x43\x26\x22\x8a\x46\xa3\x72"
+		. "\x5b\x5b\x1b\x11\x11\x4d\x4e\x4e\xfe\xa1\x08\x04\x02\x1f\x0c\x0e"
+		. "\x0e\xa2\xa3\xa3\x03\x5e\xaf\x17\x0d\x0d\x0d\x0c\x00\x5e\xcd\xce"
+		. "\x23\x25\x2c\xb1\xa4\x24\x0e\xff\xc4\x42\xe8\xfb\xf6\x1b\x16\x8f"
+		. "\xc7\xe1\x72\xb9\x98\xd9\x6c\x06\x00\xe2\x38\xce\xa2\xe0\x79\x3e"
+		. "\x5d\x10\x04\x58\xad\x56\x38\x9d\x4e\xa4\xa7\xa5\x21\x74\x1b\x44"
+		. "\xcd\xbb\xc5\x98\x70\x2f\xe0\xc3\x27\x56\x54\x1b\x4a\x30\xfe\xf2"
+		. "\x7b\x14\x97\x95\x62\x6b\x6b\x0b\xf3\xf3\xf3\x00\xc0\xf6\xf6\xf6"
+		. "\x88\x33\x18\x0c\x3d\xe1\x70\x58\xab\xd5\x6a\x31\x30\x30\x40\x73"
+		. "\x73\x73\xf8\x65\xd1\x85\xf6\x2f\x9a\x99\x2e\x23\x83\x32\x33\xb4"
+		. "\x20\x99\xe0\x70\xff\x84\xab\x60\x00\xf5\xf5\xf5\x70\x38\x1c\xcc"
+		. "\xed\x76\xd3\xfa\xfa\x3a\x63\x3d\x3d\x3d\x3f\x9b\x4c\xa6\x67\x5e"
+		. "\xaf\x17\x9b\x9b\x9b\xf0\xfb\xfd\x54\x5d\x53\xc3\xd2\x93\xd5\xb0"
+		. "\x7f\x54\x43\xc9\xca\x64\x76\xfa\xef\x1b\x54\x54\xdb\xa8\xb3\xb3"
+		. "\x93\xcd\xce\xce\x92\xcf\xe7\x63\x82\x20\xe0\xe2\xe2\x62\x1f\x00"
+		. "\x9e\xf9\x7c\x3e\x0a\x06\x83\x09\xc3\xe4\x9b\x9b\x1b\x1a\x1a\x1a"
+		. "\x22\x4b\x69\xa9\x6c\x79\x52\x4a\xc7\xc7\x7f\x52\x34\x1a\x95\x89"
+		. "\x88\x2e\x2f\x2f\xe5\xb2\xb2\x32\xb9\xb2\xb2\x92\x74\x3a\xdd\x30"
+		. "\x07\xe0\x90\x88\x9e\x67\x67\x67\x6b\xf4\x7a\x3d\x29\x14\x0a\xa8"
+		. "\x54\x2a\xd8\xed\x76\x76\x76\x7a\x8a\xb7\xa1\xb7\x38\x38\xf8\x1d"
+		. "\x4d\x4d\x4d\x00\x80\x83\x83\x03\xac\xae\xae\xb2\x70\x38\x0c\xbf"
+		. "\xdf\xff\x19\x07\x00\xfb\xfb\xfb\x3f\x9a\x4c\xa6\x17\xd1\x68\x94"
+		. "\x05\x83\x41\xa4\xa4\xa4\x40\xa5\x52\x31\x9b\xcd\x86\xe3\xe3\x63"
+		. "\xb4\xb7\xb7\xe3\xf6\xf6\x16\x3b\x3b\x3b\x00\x00\x8f\xc7\xc3\x8e"
+		. "\x8e\x8e\x3e\x06\xf0\x37\x94\x4a\x65\xe2\xb8\x4c\x2d\x2d\x2d\x54"
+		. "\x5c\x5c\x4c\xb9\xb9\xb9\x64\xb3\xd9\x68\x79\x79\x59\xde\xd8\xd8"
+		. "\xa0\xe6\xe6\x66\x32\x1a\x8d\x72\x7e\x7e\x3e\x35\x36\x36\x92\x46"
+		. "\xa3\xf9\x1c\x00\x14\x0a\x05\x38\x49\x92\x12\x0d\xee\x25\x49\x1a"
+		. "\x16\x45\x11\x39\x39\x39\x88\xc7\xe3\x74\x7e\x7e\xce\x34\x1a\x0d"
+		. "\x56\x56\x56\x48\xa7\xd3\x31\x41\x10\xc0\x18\xc3\xd9\xd9\xd9\x2b"
+		. "\x00\x27\xb2\x2c\x23\xe9\xd1\x43\x79\x9f\xe3\x38\x04\x02\x01\x92"
+		. "\x65\x19\x92\x24\xb1\xad\xad\xad\xdf\x46\x47\x47\xc7\x79\x9e\x67"
+		. "\x92\x24\x91\x28\x8a\x10\x45\x11\x69\x69\x69\x85\x09\xd1\x7f\x88"
+		. "\xc0\x07\x0e\x24\x81\x53\x98\x00\x00\x00\x00\x49\x45\x4e\x44\xae"
 		. "\x42\x60\x82";
 
 		header("Pragma: public"); // required
@@ -2069,7 +2076,7 @@ if($requri == "defaults")
 		$defaults['passwords'] = 0;
 
 	if($bin->adaptor() && $CONFIG['pb_api'])
-		$defaults['api_adaptor'] = '"' . $bin->linker() 
+		$defaults['api_adaptor'] = '"' . $bin->linker()
 			. $CONFIG['pb_api_adaptor'] . '"';
 	else
 		$defaults['api_adaptor'] = 0;
@@ -2084,7 +2091,7 @@ if($requri == "defaults")
 	else
 		$defaults['images'] = 0;
 
-	if($CONFIG['pb_download_images'] && $CONFIG['pb_images']) 
+	if($CONFIG['pb_download_images'] && $CONFIG['pb_images'])
 		$defaults['image_download'] = 1;
 	else
 		$defaults['image_download'] = 0;
@@ -2107,7 +2114,7 @@ if($requri == "defaults")
 	if($bin->lineHighlight())
 		$defaults['highlight'] = '"' . $bin->lineHighlight() . '"';
 	else
-		$defaults['highlight'] = 0; 
+		$defaults['highlight'] = 0;
 
 	if($CONFIG['pb_private'])
 		$defaults['privacy'] = 1;
@@ -2122,14 +2129,14 @@ if($requri == "defaults")
 		{
 			$key = array_keys($CONFIG['pb_lifespan'], $span);
 			$key = $key[0];
-			$defaults['lifespan'] .= ' "' . $key . '": "' 
-				. $bin->event(time() - ($span * 24 * 60 * 60), TRUE) 
+			$defaults['lifespan'] .= ' "' . $key . '": "'
+				. $bin->event(time() - ($span * 24 * 60 * 60), TRUE)
 				. '"' . ",\n";
 		}
 
 		$selecter = '/"0 seconds"/';
 		$replacer = '"Never"';
-		$defaults['lifespan'] = preg_replace($selecter, $replacer, 
+		$defaults['lifespan'] = preg_replace($selecter, $replacer,
 			$defaults['lifespan'], 1);
 
 		$defaults['lifespan'] = substr($defaults['lifespan'], 0, -2) . "\n";
@@ -2138,7 +2145,7 @@ if($requri == "defaults")
 	} else
 		$defaults['lifespan'] = '{ "0": "Never" }';
 
-	$defaults['ex_ext'] = '"' 
+	$defaults['ex_ext'] = '"'
 		. implode(", ", $CONFIG['pb_image_extensions']) . '"';
 
 	$defaults['ex_url'] = '"' . $bin->linker('[id]') . '"';
@@ -2195,7 +2202,7 @@ if($requri == "api")
 	if(!isset($reqhash))
 	{
 		if(@$_POST['email'] != "")
-			$result = array('error' => '"E01c"', 
+			$result = array('error' => '"E01c"',
 				'message' => "Spam protection activated.");
 
 		$pasteID = $bin->generateID();
@@ -2203,7 +2210,7 @@ if($requri == "api")
 
 		if($CONFIG['pb_encrypt_pastes'] && @$_POST['encryption'])
 		{
-			$encryption = $bin->encrypt($CONFIG['pb_encryption_checkphrase'], 
+			$encryption = $bin->encrypt($CONFIG['pb_encryption_checkphrase'],
 				$_POST['encryption']);
 			$imageID = md5($imageID . $bin->generateID()) . "_";
 		} else
@@ -2212,7 +2219,7 @@ if($requri == "api")
 		if(@$_POST['urlField'])
 			$postedURL = htmlspecialchars($_POST['urlField']);
 		elseif(preg_match('/^((ht|f)(tp|tps)|mailto|irc|skype|'
-			. 'git|svn|cvs|aim|gtalk|feed):/', @$_POST['pasteEnter']) 
+			. 'git|svn|cvs|aim|gtalk|feed):/', @$_POST['pasteEnter'])
 			&& count(explode("\n", $_POST['pasteEnter'])) < 2)
 			$postedURL = htmlspecialchars($_POST['pasteEnter']);
 		else
@@ -2246,19 +2253,19 @@ if($requri == "api")
 	  	{
 			$imageUpload = $db->uploadFile($_FILES['pasteImage'], $imageID);
 
-			if($imageUpload != FALSE) 
+			if($imageUpload != FALSE)
 				$postedURL = NULL;
 
 			$uploadAttempt = TRUE;
 		}
-		
-		if(in_array(strtolower($postedURLInfo['extension']), 
-			$CONFIG['pb_image_extensions']) && $CONFIG['pb_images'] 
-			&& $CONFIG['pb_download_images'] && !$imageUpload) 
+
+		if(in_array(strtolower($postedURLInfo['extension']),
+			$CONFIG['pb_image_extensions']) && $CONFIG['pb_images']
+			&& $CONFIG['pb_download_images'] && !$imageUpload)
 		{
 			$imageUpload = $db->downTheImg($postedURL, $imageID);
 
-			if($imageUpload != FALSE) 
+			if($imageUpload != FALSE)
 			{
 				$postedURL = NULL;
 				$exclam = NULL;
@@ -2272,13 +2279,13 @@ if($requri == "api")
 			$imgHostInfo = pathinfo($imgHost);
 			$_POST['pasteEnter'] = $imgHost;
 
-			if(in_array(strtolower($imgHostInfo['extension']), 
-				$CONFIG['pb_image_extensions']) && $CONFIG['pb_images'] 
-				&& $CONFIG['pb_download_images']) 
+			if(in_array(strtolower($imgHostInfo['extension']),
+				$CONFIG['pb_image_extensions']) && $CONFIG['pb_images']
+				&& $CONFIG['pb_download_images'])
 			{
 				$imageUpload = $db->downTheImg($imgHost, $imageID);
 
-				if($imageUpload != FALSE) 
+				if($imageUpload != FALSE)
 				{
 					$postedURL = NULL;
 					$exclam = NULL;
@@ -2292,10 +2299,10 @@ if($requri == "api")
 			$imageUpload = TRUE;
 
 
-		if(@$_POST['pasteEnter'] == NULL 
-			&& strlen(@$_FILES['pasteImage']['name']) > 4 
+		if(@$_POST['pasteEnter'] == NULL
+			&& strlen(@$_FILES['pasteImage']['name']) > 4
 			&& $CONFIG['pb_images'])
-			$_POST['pasteEnter'] = "Image file (" 
+			$_POST['pasteEnter'] = "Image file ("
 				. $_FILES['pasteImage']['name'] . ") uploaded...";
 
 		if(!$CONFIG['pb_url'])
@@ -2304,7 +2311,7 @@ if($requri == "api")
 		if(!$CONFIG['pb_url'])
 			$postedURL = NULL;
 
-		if($bin->highlight() && $_POST['highlighter'] != "plaintext" 
+		if($bin->highlight() && $_POST['highlighter'] != "plaintext"
 			&& $_POST['highlighter'] != NULL)
 		{
 			$geshi->set_language($_POST['highlighter']);
@@ -2317,14 +2324,14 @@ if($requri == "api")
 			$geshiCode = NULL;
 			$geshiStyle = NULL;
 		}
-		
+
 		$paste = array(
 			'ID' => $pasteID,
 			'Subdomain' => $bin->db->config['subdomain'],
 			'Author' => $bin->checkAuthor(@$_POST['author']),
 			'IP' => $_SERVER['REMOTE_ADDR'],
 			'Image' => $imageUpload,
-			'ImageTxt' => "Image file (" 
+			'ImageTxt' => "Image file ("
 				. @$_FILES['pasteImage']['name'] . ") uploaded...",
 			'URL' => $postedURL,
 			'Lifespan' => $_POST['lifespan'],
@@ -2339,23 +2346,23 @@ if($requri == "api")
 
 		if($encryption)
 		{
-			$paste['Content'] = $bin->encrypt($paste['Content'], 
+			$paste['Content'] = $bin->encrypt($paste['Content'],
 				$_POST['encryption']);
 
 			if(strlen($paste['GeSHI']) > 1)
-				$paste['GeSHI'] = $bin->encrypt($paste['GeSHI'], 
+				$paste['GeSHI'] = $bin->encrypt($paste['GeSHI'],
 					$_POST['encryption']);
 
 			if(strlen($paste['Image']) > 1)
-				$paste['Image'] = $bin->encrypt($paste['Image'], 
+				$paste['Image'] = $bin->encrypt($paste['Image'],
 					$_POST['encryption']);
 		}
-		
-		if(@$_POST['pasteEnter'] == @$_POST['originalPaste'] 
+
+		if(@$_POST['pasteEnter'] == @$_POST['originalPaste']
 			&& strlen($_POST['pasteEnter']) > 10)
 		{
-			$result = array('ID' => 0, 'error' => '"E01c"', 
-				'message' => 
+			$result = array('ID' => 0, 'error' => '"E01c"',
+				'message' =>
 				"Please don't just repost what has already been said!");
 			$JSON = '{
 				"id": ' . $result['ID'] . ',
@@ -2367,34 +2374,34 @@ if($requri == "api")
 			die(' }');
 		}
 
-		if(strlen(@$_POST['pasteEnter']) > 10 && $imageUpload 
-			&& mb_strlen($paste['Content']) <= $CONFIG['pb_max_bytes'] 
+		if(strlen(@$_POST['pasteEnter']) > 10 && $imageUpload
+			&& mb_strlen($paste['Content']) <= $CONFIG['pb_max_bytes']
 			&& $db->insertPaste($paste['ID'], $paste))
-			$result = array('ID' => '"' . $paste['ID'] . '"', 'error' => '0', 
+			$result = array('ID' => '"' . $paste['ID'] . '"', 'error' => '0',
 				'message' => "Success!");
 		else {
-			if(strlen(@$_FILES['pasteImage']['name']) > 4 
-				&& $_SERVER['CONTENT_LENGTH'] > $CONFIG['pb_image_maxsize'] 
+			if(strlen(@$_FILES['pasteImage']['name']) > 4
+				&& $_SERVER['CONTENT_LENGTH'] > $CONFIG['pb_image_maxsize']
 				&& $CONFIG['pb_images'])
-				$result = array('ID' => 0, 'error' => '"E02b"', 
+				$result = array('ID' => 0, 'error' => '"E02b"',
 					'message' => "File is too big.");
-			elseif(strlen(@$_FILES['pasteImage']['name']) > 4 
+			elseif(strlen(@$_FILES['pasteImage']['name']) > 4
 				&& $CONFIG['pb_images'])
-				$result = array('ID' => 0, 'error' => '"E02a"', 
+				$result = array('ID' => 0, 'error' => '"E02a"',
 					'message' => "Invalid file format.");
-			elseif(strlen(@$_FILES['pasteImage']['name']) > 4 
+			elseif(strlen(@$_FILES['pasteImage']['name']) > 4
 				&& !$CONFIG['pb_images'])
-				$result = array('ID' => 0, 'error' => '"E02d"', 
+				$result = array('ID' => 0, 'error' => '"E02d"',
 					'message' => "Image hosting disabled.");
 			else
-				$result = array('ID' => 0, 'error' => '"E01a"', 
+				$result = array('ID' => 0, 'error' => '"E01a"',
 					'message' => "Invalid POST request."
-					. " Pasted text must be between 10 characters and " 
+					. " Pasted text must be between 10 characters and "
 					. $bin->humanReadableFilesize($CONFIG['pb_max_bytes']));
 		}
 
 
-		$JSON = '{ 
+		$JSON = '{
 			"id": ' . $result['ID'] . ',
 			"url": "' . $bin->linker($paste['ID']) . $exclam . '",
 			"error": ' . $result['error'] . ',
@@ -2412,8 +2419,8 @@ if($requri == "api")
 			if(count($recentPosts) > 0)
 			{
 				foreach($recentPosts as $paste)
-					$JSON .= '{ "id": "' . $paste['ID'] . '", "author": "' 
-						. $paste['Author'] . '", "datetime": ' 
+					$JSON .= '{ "id": "' . $paste['ID'] . '", "author": "'
+						. $paste['Author'] . '", "datetime": '
 						. $paste['Datetime'] . ' }';
 			}
 
@@ -2425,10 +2432,10 @@ if($requri == "api")
 		{
 			if($db->dbt == "mysql")
 				$pasted = $pasted[0];
-						
+
 			if($pasted['Encrypted'] != NULL && !@$_POST['decrypt_phrase'])
 			{
-				$JSON = '{ 
+				$JSON = '{
 					"id": 0,
 					"url": "' . $bin->linker($reqhash) . '",
 					"author": 0,
@@ -2445,17 +2452,17 @@ if($requri == "api")
 						. " cannot be sent over API!  -->") . '",
 					"geshi": 0,
 					"style": 0';
-	
+
 				print_r($JSON);
 				die(' }');
 			} else
 				$pasted['Encrypted'] = NULL;
 
 			if(strlen($pasted['Image']) > 3)
-				$pasted['Image_path'] = $bin->linker() 
+				$pasted['Image_path'] = $bin->linker()
 					. $db->setDataPath($pasted['Image']);
 
-			$JSON = '{ 
+			$JSON = '{
 				"id": "' . $pasted['ID'] . '",
 				"url": "' . $bin->linker($pasted['ID']) . '",
 				"author": "' . $pasted['Author'] . '",
@@ -2474,7 +2481,7 @@ if($requri == "api")
 			print_r($JSON);
 			die(' }');
 		} else {
-			$JSON = '{ 
+			$JSON = '{
 				"id": 0,
 				"url": "' . $bin->linker($reqhash) . '",
 				"author": 0,
@@ -2500,15 +2507,15 @@ if($requri == "api")
 
 }
 
-if($requri != "install" && $requri != NULL 
-	&& $bin->checkIfRedir($requri) != false && substr($requri, -1) != "!" 
+if($requri != "install" && $requri != NULL
+	&& $bin->checkIfRedir($requri) != false && substr($requri, -1) != "!"
 	&& !$_POST['adminProceed'])
 {
 	header("Location: " . $bin->checkIfRedir($requri));
 	die("This is a URL/Mailto forward holding page!");
 }
 
-if($requri != "install" && $requri != NULL && substr($requri, -1) != "!" 
+if($requri != "install" && $requri != NULL && substr($requri, -1) != "!"
 	&& !$_POST['adminProceed'] && $reqhash == "raw")
 {
 	if($pasted = $db->readPaste($requri))
@@ -2516,23 +2523,35 @@ if($requri != "install" && $requri != NULL && substr($requri, -1) != "!"
 		if($db->dbt == "mysql")
 			$pasted = $pasted[0];
 
+		if(gmdate('U') > $pasted['Lifespan']) {
+			$db->dropPaste($pasted['ID']);
+			header("Content-Type: text/plain; charset=utf-8");
+			die('This paste has either expired or doesn\'t exist!');
+		}
+
 		if(strlen($pasted['Image']) > 3)
-			header("Location: " . $bin->linker() 
+			header("Location: " . $bin->linker()
 				. $db->setDataPath($pasted['Image']));
 
 		header("Content-Type: text/plain; charset=utf-8");
 		die($db->rawHTML($bin->noHighlight($pasted['Data'])));
 	} else
-		die('There was an error!');
+		die('This paste has either expired or doesn\'t exist!');
 }
 
-if($requri != "install" && $requri != NULL && substr($requri, -1) != "!" 
+if($requri != "install" && $requri != NULL && substr($requri, -1) != "!"
 	&& !$_POST['adminProceed'] && $reqhash == "download")
 {
 	if($pasted = $db->readPaste($requri))
     {
     	if($db->dbt == "mysql")
 			$pasted = $pasted[0];
+
+		if(gmdate('U') > $pasted['Lifespan']) {
+			$db->dropPaste($pasted['ID']);
+			header("Content-Type: text/plain; charset=utf-8");
+			die('This paste has either expired or doesn\'t exist!');
+		}
 
 		if(strlen($pasted['Image']) > 3)
 		{
@@ -2547,22 +2566,22 @@ if($requri != "install" && $requri != NULL && substr($requri, -1) != "!"
 				. " pre-check=0");
 			header("Cache-Control: private", false);
 			header("Content-Type: image/" . $imgFileInfo['extension']);
-			header("Content-Disposition: attachment; filename=" . $requri 
+			header("Content-Disposition: attachment; filename=" . $requri
 				. "." . str_replace("jpeg", "jpg", $imgFileInfo['extension']));
 			header("Content-Transfer-Encoding: binary");
 			header("Content-Length: " . filesize($imageServe));
 
 			readfile($imageServe);
 
-			die();	
+			die();
 		}
 
 		header("Content-Type: text/plain; charset=utf-8");
-		header("Content-Disposition: attachment; filename=" 
+		header("Content-Disposition: attachment; filename="
 			. $requri . ".txt");
 		die($db->rawHTML($bin->noHighlight($pasted['Data'])));
 	} else
-		die('There was an error!');
+		die('This paste has either expired or doesn\'t exist!');
 }
 
 $pasteinfo = array();
@@ -2570,7 +2589,7 @@ if($requri != "install")
 	$bin->cleanUp($CONFIG['pb_recent_posts']);
 
 ?>
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
@@ -2578,9 +2597,9 @@ if($requri != "install")
 		<link rel="icon" type="image/vnd.microsoft.icon" href="favicon.ico" />
 		<link rel="icon" type="image/png" href="favicon.png" />
 		<meta name="generator" content="Knoxious Pastebin">
-		<meta name="Description" content="A quick, simple, multi-purpose pastebin." />	
+		<meta name="Description" content="A quick, simple, multi-purpose pastebin." />
 		<meta name="Keywords" content="simple quick pastebin image hosting linking embedding url shortening syntax highlighting" />
-		<meta name="Robots" content="<?php echo $bin->robotPrivacy($requri); ?>" /> 
+		<meta name="Robots" content="<?php echo $bin->robotPrivacy($requri); ?>" />
 		<meta name="Author" content="Xan Manning, xan-manning.co.uk" />
 
 		<?php
@@ -2593,7 +2612,7 @@ if($requri != "install")
 				h2 { font-size: 15px; }
 				a { color: #336699; }
 				img { border: none; }
-				pre { display: inline; font-family: inherit; white-space: pre-wrap; } 
+				pre { display: inline; font-family: inherit; white-space: pre-wrap; }
 				.success { background-color: #AAFFAA; border: 1px solid #00CC00; font-weight: bolder; text-align: center; padding: 2px; color: #000000; margin-top: 3px; margin-bottom: 3px; }
 				.warn { background-color: #FFFFAA; border: 1px solid #CCCC00; font-weight: bolder; text-align: center; padding: 2px; color: #000000; margin-top: 3px; margin-bottom: 3px; }
 				.error { background-color: #FFAAAA; border: 1px solid #CC0000; font-weight: bolder; text-align: center; padding: 2px; color: #000000; margin-top: 3px; margin-bottom: 3px; }
@@ -2608,7 +2627,7 @@ if($requri != "install")
 				.infoMessage { padding: 25px; font-size: medium; max-width: 800px; }
 				.lineHighlight { background-color: #FFFFAA; font-weight: bolder; color: #000000; }
 				.pasteEnterLabel { width: 80%; display: block; }
-				.resizehandle {	background: #F0F0F0 scroll 45%; cursor: s-resize; text-align: center; color: #AAAAAA; height: 16px; width: 100%; } 
+				.resizehandle {	background: #F0F0F0 scroll 45%; cursor: s-resize; text-align: center; color: #AAAAAA; height: 16px; width: 100%; }
 				#newPaste { text-align: center; border-bottom: 1px dotted #CCCCCC; padding-bottom: 10px; }
 				#lineNumbers { width: 100%; background-color: #FFFFFF; overflow: auto; padding: 0; margin: 0; }
 				div#siteWrapper { width: 100%; margin: 0 auto; }
@@ -2659,7 +2678,7 @@ if($requri != "install")
 				#_clipboardURI_replace { visibility: hidden; }
 				#_copyText { visibility: hidden; }
 				#_copyURL { visibility: hidden; }
-			
+
 			@media print {
 				body { background: #fff; font-family: Arial, Helvetica, sans-serif; font-size: 10pt; }
 				pre { white-space: pre-wrap; display: inline; }
@@ -2673,7 +2692,7 @@ if($requri != "install")
 				#lineNumbers { max-height: none; width: auto; }
 				#pasteBin { width: auto; border: none; }
 				#formContainer { display: none; }
-				#styleBar { display: none; } 
+				#styleBar { display: none; }
 				#_clipboard_replace { display: none; }
 				#_clipboardURI_replace { display: none; }
 				#_clipboard { display: none; }
@@ -2691,28 +2710,28 @@ if($requri != "install")
 			}
 
 			/* begin JS */
-			
+
 			$_commonJS = "/* AJAXIAN */
 var tab = \"    \";
-       
+
 function catchTab(evt) {
     var t = evt.target;
     var ss = t.selectionStart;
     var se = t.selectionEnd;
- 
+
     if (evt.keyCode == 9) {
         evt.preventDefault();
-               
+
         if (ss != se && t.value.slice(ss,se).indexOf(\"\\n\") != -1) {
             var pre = t.value.slice(0,ss);
             var sel = t.value.slice(ss,se).replace(/\\n/g,\"\\n\"+tab);
             var post = t.value.slice(se,t.value.length);
             t.value = pre.concat(tab).concat(sel).concat(post);
-                   
+
             t.selectionStart = ss + tab.length;
             t.selectionEnd = se + tab.length;
         }
-               
+
         else {
             t.value = t.value.slice(0,ss).concat(tab).concat(t.value.slice(ss,t.value.length));
             if (ss == se) {
@@ -2724,17 +2743,17 @@ function catchTab(evt) {
             }
         }
     }
-           
+
    else if (evt.keyCode==8 && t.value.slice(ss - 4,ss) == tab) {
         evt.preventDefault();
-               
+
         t.value = t.value.slice(0,ss - 4).concat(t.value.slice(ss,t.value.length));
         t.selectionStart = t.selectionEnd = ss - tab.length;
     }
-           
+
     else if (evt.keyCode==46 && t.value.slice(se,se + 4) == tab) {
         evt.preventDefault();
-             
+
         t.value = t.value.slice(0,ss).concat(t.value.slice(ss + 4,t.value.length));
         t.selectionStart = t.selectionEnd = ss;
     }
@@ -2780,7 +2799,7 @@ function submitPaste(targetButton) {
 }";
 
 			if($bin->jQuery())
-			{ 
+			{
 				echo "<script type=\"text/javascript\" src=\"" . $CONFIG['pb_jQuery'] . "\"></script>";
 
 		?>
@@ -2823,7 +2842,7 @@ function submitPaste(targetButton) {
 						$("textarea").resizehandle();
 
 				});
-				
+
 				<?php if($CONFIG['pb_url']) { ?>
 				function checkIfURL(checkMe){
 					var checking = checkMe.value;
@@ -2868,25 +2887,25 @@ function submitPaste(targetButton) {
 				/* AJAXIAN */
 
 				var tab = "	";
-       
+
 				function catchTab(evt) {
 				    var t = evt.target;
 				    var ss = t.selectionStart;
 				    var se = t.selectionEnd;
-				 
+
 				    if (evt.keyCode == 9) {
 					evt.preventDefault();
-					       
+
 					if (ss != se && t.value.slice(ss,se).indexOf("\n") != -1) {
 					    var pre = t.value.slice(0,ss);
 					    var sel = t.value.slice(ss,se).replace(/\n/g,"\n"+tab);
 					    var post = t.value.slice(se,t.value.length);
 					    t.value = pre.concat(tab).concat(sel).concat(post);
-						   
+
 					    t.selectionStart = ss + tab.length;
 					    t.selectionEnd = se + tab.length;
 					}
-					       
+
 					else {
 					    t.value = t.value.slice(0,ss).concat(tab).concat(t.value.slice(ss,t.value.length));
 					    if (ss == se) {
@@ -2898,17 +2917,17 @@ function submitPaste(targetButton) {
 					    }
 					}
 				    }
-					   
+
 				   else if (evt.keyCode==8 && t.value.slice(ss - 4,ss) == tab) {
 					evt.preventDefault();
-					       
+
 					t.value = t.value.slice(0,ss - 4).concat(t.value.slice(ss,t.value.length));
 					t.selectionStart = t.selectionEnd = ss - tab.length;
 				    }
-					   
+
 				    else if (evt.keyCode==46 && t.value.slice(se,se + 4) == tab) {
 					evt.preventDefault();
-					     
+
 					t.value = t.value.slice(0,ss).concat(t.value.slice(ss + 4,t.value.length));
 					t.selectionStart = t.selectionEnd = ss;
 				    }
@@ -2933,7 +2952,7 @@ function submitPaste(targetButton) {
 					<?php } else { ?>
 					var originalPaste = "";
 					var parentThread = "";
-					<?php } 
+					<?php }
 					if(!$CONFIG['pb_images'] || $requri){
 						?>
 						var pasteImage = "";
@@ -2941,7 +2960,7 @@ function submitPaste(targetButton) {
 					else {
 						?>
 						var pasteImage = $('#pasteImage').attr('value');
-						<?php 
+						<?php
 					}
 					?>
 
@@ -2949,11 +2968,11 @@ function submitPaste(targetButton) {
 
 					if(pasteImage == ""){
 						buttonElement.attr('value', 'Posting...').attr('disabled', 'disabled');
-						$.ajax({  
-      							type: "POST",  
-      							url: "<?php echo $bin->linker('api'); ?>",  
+						$.ajax({
+      							type: "POST",
+      							url: "<?php echo $bin->linker('api'); ?>",
       							data: dataString,
-							dataType: "json", 
+							dataType: "json",
       							success: function(msg) {
 								$('#result').attr('class', 'result');
 								if(msg.error != 0)
@@ -2974,7 +2993,7 @@ function submitPaste(targetButton) {
 								buttonElement.attr('value', 'Submit your Paste');
 								$('#result').prepend('<div class="error">Something went wrong</div><div class="confirmURL">' + msg + '</div>');
 								window.scrollTo(0,0);
-							} 
+							}
     						});
 					return false;
 					} else
@@ -3061,9 +3080,9 @@ function findHeight(obj) {
 		h = obj.offsetHeight;
 	return h;
 }
-function formSend(id, target) {   
+function formSend(id, target) {
 	var originalText = eval(target).value;
-	document.getElementById(id).textToCopy(originalText);    
+	document.getElementById(id).textToCopy(originalText);
 }
 
 function setCopyVars(){
@@ -3155,7 +3174,7 @@ function checkIfURL(checkMe){
 function checkIfURL(checkMe){
 	return false;
 }
-<?php } 
+<?php }
 
 echo $_commonJS; ?>
 
@@ -3222,13 +3241,13 @@ elseif($requri != "install" && $db->connect())
 else
 	echo "<!-- No Check is required... -->";
 
-if(@$_POST['adminAction'] == "delete" && $bin->hasher(hash($CONFIG['pb_algo'], 
+if(@$_POST['adminAction'] == "delete" && $bin->hasher(hash($CONFIG['pb_algo'],
 	@$_POST['adminPass']), $CONFIG['pb_salts']) === $CONFIG['pb_pass'])
-{ 
-	$db->dropPaste($requri); 
-	echo "<div class=\"success\">Paste, " . $requri 
-		. ", has been deleted!</div>"; 
-	$requri = NULL; 
+{
+	$db->dropPaste($requri);
+	echo "<div class=\"success\">Paste, " . $requri
+		. ", has been deleted!</div>";
+	$requri = NULL;
 }
 
 if(@$_POST['subdomain'] && $error_subdomain)
@@ -3281,7 +3300,7 @@ if($requri != "install" && @$_POST['submit'])
 			}
 			$uploadAttempt = TRUE;
 		}
-		
+
 		if(in_array(strtolower($postedURLInfo['extension']), $CONFIG['pb_image_extensions']) && $CONFIG['pb_images'] && $CONFIG['pb_download_images'] && !$imageUpload) {
 			$imageUpload = $db->downTheImg($postedURL, $imageID);
 			if($imageUpload != FALSE) {
@@ -3293,7 +3312,7 @@ if($requri != "install" && @$_POST['submit'])
 
 		if(!$imageUpload && !$uploadAttempt)
 			$imageUpload = TRUE;
-		
+
 		if(@$_POST['pasteEnter'] == NULL && strlen(@$_FILES['pasteImage']['name']) > 4 && $CONFIG['pb_images'] && $imageUpload)
 			$_POST['pasteEnter'] = "Image file (" . $_FILES['pasteImage']['name'] . ") uploaded...";
 
@@ -3316,7 +3335,7 @@ if($requri != "install" && @$_POST['submit'])
 					$geshiStyle = NULL;
 				}
 
-		
+
 		$paste = array(
 			'ID' => $pasteID,
 			'Author' => $bin->checkAuthor(@$_POST['author']),
@@ -3343,12 +3362,12 @@ if($requri != "install" && @$_POST['submit'])
 				if(strlen($paste['Image']) > 1)
 					$paste['Image'] = $bin->encrypt($paste['Image'], $_POST['encryption']);
 			}
-		
+
 		if(@$_POST['pasteEnter'] == @$_POST['originalPaste'] && strlen($_POST['pasteEnter']) > 10)
 			die("<div class=\"error\">Please don't just repost what has already been said!</div></div></body></html>");
-		
+
 		if(strlen(@$_POST['pasteEnter']) > 10 && $imageUpload && mb_strlen($paste['Content']) <= $CONFIG['pb_max_bytes'] && $db->insertPaste($paste['ID'], $paste))
-			{ 
+			{
 				if($bin->_clipboard())
 					die("<div class=\"result\"><div class=\"success\">Your paste has been successfully recorded!</div><div class=\"confirmURL\">URL to your paste is <a href=\"" . $bin->linker($paste['ID']) . $exclam . "\">" . $bin->linker($paste['ID']) . "</a> &nbsp; <span class=\"copyText\" id=\"_copyURL\">Copy URL</span><span id=\"_copyText\" style=\"visibility: hidden;\">&nbsp;</span></div></div><form id=\"pasteForm\" name=\"pasteForm\" action=\"" . $bin->linker($pasted['ID']) . "\" method=\"post\"><input type=\"hidden\" name=\"originalPaste\" id=\"originalPaste\" value=\"" . $bin->linker($paste['ID']) . "\" /><input type=\"hidden\" name=\"thisURI\" id=\"thisURI\" value=\"" . $bin->linker($paste['ID']) . "\" /></form><div class=\"spacer\">&nbsp;</div><div class=\"spacer\"><span id=\"_clipboard_replace\">YOU NEED FLASH!</span> &nbsp; <span id=\"_clipboardURI_replace\">YOU NEED FLASH!</span></div></div></body></html>");
 				else
@@ -3373,9 +3392,9 @@ if($requri != "install" && $CONFIG['pb_recent_posts'] && substr($requri, -1) != 
 		echo "<h2 id=\"newPaste\"><a href=\"" . $bin->linker() . "\">New Paste</a></h2><div class=\"spacer\">&nbsp;</div>";
 		if($requri || count($recentPosts) > 0)
 			if(count($recentPosts) > 0)
-				{					
-					echo "<h2>Recent Pastes</h2>";	
-					echo "<ul id=\"postList\" class=\"recentPosts\">";					
+				{
+					echo "<h2>Recent Pastes</h2>";
+					echo "<ul id=\"postList\" class=\"recentPosts\">";
 					foreach($recentPosts as $paste_) {
 						$rel = NULL;
 						$exclam = NULL;
@@ -3396,7 +3415,7 @@ if($requri != "install" && $CONFIG['pb_recent_posts'] && substr($requri, -1) != 
 						if($paste_['Encrypted'] != NULL && $paste_['URL'] == NULL) {
 							$rel = " rel=\"locked\"";
 						}
-						
+
 
 						echo "<li id=\"" . $paste_['ID'] . "\" class=\"postItem\"><a href=\"" . $bin->linker($paste_['ID']) . $exclam . "\"" . $rel . ">" . stripslashes($paste_['Author']) . "</a><br />" . $bin->event($paste_['Datetime']) . " ago.</li>";
 					}
@@ -3459,7 +3478,7 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 				if($pasted['Encrypted'] != NULL && !@$_POST['decrypt_phrase'])
 					die("<div class=\"result\"><div class=\"warn\">This paste is password protected!</div><div id=\"passFormContaineContainer\"><form id=\"passForm\" name=\"passForm\" action=\"" . $bin->linker($pasted['ID']) . "\" method=\"post\"><label for=\"decrypt_phrase\">Enter password</label><input type=\"password\" id=\"decrypt_phrase\" name=\"decrypt_phrase\" /> <input type=\"submit\" id=\"decrypt\" name=\"decrypt\" value=\"Unlock\" /></form></div></div></div></body></html>");
 				elseif($pasted['Encrypted'] != NULL && @$_POST['decrypt_phrase'] && !$bin->testDecrypt($pasted['Encrypted'], $_POST['decrypt_phrase']))
-					die("<div class=\"result\"><div class=\"error\">Password incorrect!</div><div><form id=\"passForm\" name=\"passForm\" action=\"" . $bin->linker($pasted['ID']) . "\" method=\"post\"><label for=\"decrypt_phrase\">Enter password</label><input type=\"password\" id=\"decrypt_phrase\" name=\"decrypt_phrase\" /> <input type=\"submit\" id=\"decrypt\" name=\"decrypt\" value=\"Unlock\" /></form></div></div></div></body></html>");	
+					die("<div class=\"result\"><div class=\"error\">Password incorrect!</div><div><form id=\"passForm\" name=\"passForm\" action=\"" . $bin->linker($pasted['ID']) . "\" method=\"post\"><label for=\"decrypt_phrase\">Enter password</label><input type=\"password\" id=\"decrypt_phrase\" name=\"decrypt_phrase\" /> <input type=\"submit\" id=\"decrypt\" name=\"decrypt\" value=\"Unlock\" /></form></div></div></div></body></html>");
 				elseif($pasted['Encrypted'] != NULL && @$_POST['decrypt_phrase'] && $bin->testDecrypt($pasted['Encrypted'], $_POST['decrypt_phrase']))
 					{
 						$pasted['Data'] = $bin->decrypt($pasted['Data'], $_POST['decrypt_phrase']);
@@ -3480,8 +3499,8 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 					$pasted['Syntax'] = "plaintext";
 
 				if($pasted['Subdomain'] != NULL && !$CONFIG['subdomain'])
-					$bin->setSubdomain($pasted['Subdomain']);					
-				
+					$bin->setSubdomain($pasted['Subdomain']);
+
 				if($bin->highlight() && $pasted['Syntax'] != "plaintext")
 					{
 						echo "<style type=\"text/css\">";
@@ -3524,10 +3543,10 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 
 				if($bin->_clipboard())
 					echo "<div class=\"_clipboardBar\"><span class=\"copyText\" id=\"_copyText\">Copy Contents</span> &nbsp; <span class=\"copyText\" id=\"_copyURL\">Copy URL</span></div>";
-				else 
+				else
 					echo "<div class=\"spacer\">&nbsp;</div>";
 
-				
+
 				if(!$bin->highlight() || (!is_bool($pasted['Image']) && !is_numeric($pasted['Image'])) || $pasted['Syntax'] == "plaintext")
 					{
 						echo "<div id=\"retrievedPaste\"><div id=\"lineNumbers\"><ol id=\"orderedList\" class=\"monoText\">";
@@ -3553,8 +3572,8 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 					$event = "onblur=\"return checkIfURL(this);\" onkeyup";
 
 				if(!is_bool($pasted['Image']) && !is_numeric($pasted['Image']))
-						$pasted['Data']['noHighlight']['Dirty'] = $bin->linker() . $db->setDataPath($pasted['Image']);	
-				
+						$pasted['Data']['noHighlight']['Dirty'] = $bin->linker() . $db->setDataPath($pasted['Image']);
+
 				if($CONFIG['pb_editing']) {
 				echo "<div id=\"formContainer\">
 					<form id=\"pasteForm\" name=\"pasteForm\" action=\"" . $bin->linker($pasted['ID']) . "\" method=\"post\">
@@ -3602,7 +3621,7 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 
 						if($pasted['Protection'])
 							$enabled = "disabled";
-						
+
 						$privacyContainer = "<div id=\"privacyContainer\"><label for=\"privacy\">Paste Visibility</label> <select name=\"privacy\" id=\"privacy\" " . $enabled . "><option value=\"0\">Public</option> <option value=\"1\">Private</option></select></div>";
 
 						$selecter = '/value="' . $pasted['Protection'] . '"/';
@@ -3731,25 +3750,25 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 				{ echo "<li>Creating Database Tables. ";
 					$structure = "CREATE TABLE IF NOT EXISTS " . $CONFIG['mysql_connection_config']['db_table'] . " (ID varchar(255), Subdomain varchar(100), Datetime bigint, Author varchar(255), Protection int, Encrypted longtext DEFAULT NULL, Syntax varchar(255) DEFAULT 'plaintext', Parent longtext, Image longtext, ImageTxt longtext, URL longtext, Lifespan int, IP varchar(225), Data longtext, GeSHI longtext, Style longtext, INDEX (id)) ENGINE = INNODB CHARACTER SET utf8 COLLATE utf8_general_ci";
 				if($db->dbt == "mysql")
-					{				
+					{
 						if(!mysql_query($structure, $db->link) && !$CONFIG['mysql_connection_config']['db_existing'])
 							{ echo "<span class=\"error\">Structure failed</span> - Check Config in index.php (Does the table already exist?)"; }
 						else
-							{ echo "<span class=\"success\">Table created!</span>"; 
+							{ echo "<span class=\"success\">Table created!</span>";
 							  mysql_query("ALTER TABLE `" . $CONFIG['mysql_connection_config']['db_table'] . "` ORDER BY `Datetime` DESC", $db->link);
 							  $stage[] = 1;
 							  if($CONFIG['mysql_connection_config']['db_existing'])
-								echo "<span class=\"warn\">Attempting to use an existing table!</span> If this is not a Pastebin table a fault will occur."; 
+								echo "<span class=\"warn\">Attempting to use an existing table!</span> If this is not a Pastebin table a fault will occur.";
 
 								mkdir($CONFIG['txt_config']['db_folder']);
 								chmod($CONFIG['txt_config']['db_folder'], $CONFIG['txt_config']['dir_mode']);
 								mkdir($CONFIG['txt_config']['db_folder'] . "/subdomain");
 								chmod($CONFIG['txt_config']['db_folder'] . "/subdomain", $CONFIG['txt_config']['dir_mode']);
-								mkdir($CONFIG['txt_config']['db_folder'] . "/" . $CONFIG['txt_config']['db_images']); 
+								mkdir($CONFIG['txt_config']['db_folder'] . "/" . $CONFIG['txt_config']['db_images']);
 								chmod($CONFIG['txt_config']['db_folder'] . "/" . $CONFIG['txt_config']['db_images'], $CONFIG['txt_config']['dir_mode']);
-								$db->write("FORBIDDEN", $CONFIG['txt_config']['db_folder'] . "/index.html"); 
+								$db->write("FORBIDDEN", $CONFIG['txt_config']['db_folder'] . "/index.html");
 								chmod($CONFIG['txt_config']['db_folder'] . "/index.html", $CONFIG['txt_config']['file_mode']);
-								$db->write("FORBIDDEN", $CONFIG['txt_config']['db_folder'] . "/" . $CONFIG['txt_config']['db_images'] . "/index.html"); 
+								$db->write("FORBIDDEN", $CONFIG['txt_config']['db_folder'] . "/" . $CONFIG['txt_config']['db_images'] . "/index.html");
 								chmod($CONFIG['txt_config']['db_folder'] . "/" . $CONFIG['txt_config']['db_images'] . "/index.html", $CONFIG['txt_config']['file_mode']);
 
 								$forbidden_array = array('ID' => 'forbidden', 'Time_offset' => 10, 'Author' => 'System', 'IP' => $_SERVER['REMOTE_ADDR'], 'Lifespan' => 0, 'Image' => TRUE, 'Protect' => 1, 'Content' => serialize($bin->generateForbiddenSubdomains(TRUE)));
@@ -3762,7 +3781,7 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 						}
 				echo "</li>"; }
 				if(count($stage) > 4)
-				{ echo "<li>Locking Installation. ";					
+				{ echo "<li>Locking Installation. ";
 					if(!$db->write(time(), './INSTALL_LOCK'))
 						echo "<span class=\"error\">Writing Error</span>";
 					else
@@ -3792,7 +3811,7 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 						$domain_name = str_replace(array($CONFIG['pb_protocol'] . "://", "www."), "", $bin->linker());
 						$subdomain_action = $bin->linker();
 					}
-					
+
 				$subdomainForm = "<div id=\"subdomainForm\"><strong>Subdomain</strong><br /><form id=\"subdomain_form\" action=\"" . $subdomain_action . "\" method=\"POST\">" . $CONFIG['pb_protocol'] . "://<input type=\"text\" name=\"subdomain\" id=\"subdomain\" maxlength=\"32\" />." . $domain_name . " <input type=\"submit\" id=\"new_subdomain\" name=\"new_subdomain\" value=\"Create Subdomain\" /></form><div class=\"spacer\">&nbsp;</div></div>";
 
 				if(strlen($bin->linker()) < 16)
@@ -3814,7 +3833,7 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 				if($CONFIG['pb_encrypt_pastes'])
 					$service['encrypting'] = array('style' => 'success', 'status' => 'Enabled');
 				else
-					$service['encrypting'] = array('style' => 'error', 'status' => 'Disabled');	
+					$service['encrypting'] = array('style' => 'error', 'status' => 'Disabled');
 
 				if($bin->_clipboard())
 					$service['clipboard'] = array('style' => 'success', 'status' => 'Enabled');
@@ -3832,7 +3851,7 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 				}
 				else
 					$service['image_download'] = array('style' => 'error', 'status' => 'Disabled', 'tip' => NULL);
-					
+
 
 				if($CONFIG['pb_url'])
 					$service['url'] = array('style' => 'success', 'status' => 'Enabled', 'tip' => $isShortURL, 'str' => '/url');
@@ -3857,28 +3876,28 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 				if($bin->lineHighlight())
 					$service['highlight'] = array('style' => 'success', 'status' => 'Enabled', 'tip' => ' To highlight lines, prefix them with <em>' . $bin->lineHighlight() . '</em>');
 				else
-					$service['highlight'] = array('style' => 'error', 'status' => 'Disabled', 'tip' => NULL); 
+					$service['highlight'] = array('style' => 'error', 'status' => 'Disabled', 'tip' => NULL);
 
 				$uploadForm = NULL;
 
 				if($bin->jQuery())
 					$event = "onblur";
 				else
-					$event = "onblur=\"return checkIfURL(this);\" onkeyup";				
+					$event = "onblur=\"return checkIfURL(this);\" onkeyup";
 
 
 				if($CONFIG['pb_images'])
 					$uploadForm = "<div id=\"fileUploadContainer\"><input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"" . $CONFIG['pb_image_maxsize'] . "\" /><label>Attach an Image (" . implode(", ", $CONFIG['pb_image_extensions']) . " &raquo; Max size " . $bin->humanReadableFilesize($CONFIG['pb_image_maxsize']) . ")</label><br /><input type=\"file\" name=\"pasteImage\" id=\"pasteImage\" /><br />(Optional)</div>";
 				else
 					$uploadForm = "<div id=\"fileUploadContainer\">&nbsp;<br />&nbsp;<br />&nbsp;<br />&nbsp;</div>";
-				
+
 				echo "<div id=\"pastebin\" class=\"pastebin\">"
 				. "<h1>" .  $bin->setTitle($CONFIG['pb_name'])  . "</h1>" .
 				$bin->setTagline($CONFIG['pb_tagline'])
 				. "<div id=\"result\"></div>
 				<div id=\"formContainer\">
 				<div id=\"instructions\" class=\"instructions\"><h2>How to use</h2><div>Fill out the form with data you wish to store online. You will be given an unique address to access your content that can be sent over IM/Chat/(Micro)Blog for online collaboration (eg, " . $bin->linker('z3n') . "). The following services have been made available by the administrator of this server:</div><ul id=\"serviceList\"><li><span class=\"success\">Enabled</span> Text</li><li><span class=\"" . $service['syntax']['style'] . "\">" . $service['syntax']['status'] . "</span> Syntax Highlighting</li><li><span class=\"" . $service['highlight']['style'] . "\">" . $service['highlight']['status'] . "</span> Line Highlighting</li><li><span class=\"" . $service['editing']['style'] . "\">" . $service['editing']['status'] . "</span> Editing</li><li><span class=\"" . $service['encrypting']['style'] . "\">" . $service['encrypting']['status'] . "</span> Password Protection</li><li><span class=\"" . $service['clipboard']['style'] . "\">" . $service['clipboard']['status'] . "</span> Copy to Clipboard</li><li><span class=\"" . $service['images']['style'] . "\">" . $service['images']['status'] . "</span> Image hosting</li><li><span class=\"" . $service['image_download']['style'] . "\">" . $service['image_download']['status'] . "</span> Copy image from URL</li><li><span class=\"" . $service['url']['style'] . "\">" . $service['url']['status'] . "</span> URL Shortening/Redirection</li><li><span class=\"" . $service['jQuery']['style'] . "\">" . $service['jQuery']['status'] . "</span> Visual Effects</li><li><span class=\"" . $service['jQuery']['style'] . "\">" . $service['jQuery']['status'] . "</span> AJAX Posting</li><li><span class=\"" . $service['api']['style'] . "\">" . $service['api']['status'] . "</span> API</li><li><span class=\"" . $service['subdomains']['style'] . "\">" . $service['subdomains']['status'] . "</span> Custom Subdomains</li></ul><div class=\"spacer\">&nbsp;</div><div><strong>What to do</strong></div><div>Just paste your text, sourcecode or conversation into the textbox below, add a name if you wish" . $service['images']['tip'] . " then hit submit!" . $service['url']['tip'] . "" . $service['highlight']['tip'] . "</div><div class=\"spacer\">&nbsp;</div><div><strong>Some tips about usage;</strong> If you want to put a message up asking if the user wants to continue, add an &quot;!&quot; suffix to your URL (eg, " . $bin->linker('z3n') . "!).</div>" . $service['api']['tip'] . "<div class=\"spacer\">&nbsp;</div></div>" . $service['subdomains']['tip'] . "
-				<form id=\"pasteForm\" action=\"" . $bin->linker() . "\" method=\"post\" name=\"pasteForm\" enctype=\"multipart/form-data\">	
+				<form id=\"pasteForm\" action=\"" . $bin->linker() . "\" method=\"post\" name=\"pasteForm\" enctype=\"multipart/form-data\">
 				<div><label for=\"pasteEnter\" class=\"pasteEnterLabel\">Paste your text" . $service['url']['str'] . " here!" . $service['highlight']['tip'] . " <span id=\"showInstructions\">[ <a href=\"#\" onclick=\"return showInstructions();\">more info</a> ]</span><span id=\"showSubdomain\">" . $subdomainClicker . "</span></label>
 						<textarea id=\"pasteEnter\" name=\"pasteEnter\" onkeydown=\"return catchTab(event)\" " . $event . "=\"return checkIfURL(this);\"></textarea></div>
 						<div id=\"foundURL\" style=\"display: none;\">URL has been detected...</div>
