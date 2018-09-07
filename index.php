@@ -2582,7 +2582,7 @@ if($requri != "install")
 		<meta name="Keywords" content="simple quick pastebin image hosting linking embedding url shortening syntax highlighting" />
 		<meta name="Robots" content="<?php echo $bin->robotPrivacy($requri); ?>" /> 
 		<meta name="Author" content="Xan Manning, xan-manning.co.uk" />
-
+		<meta name="viewport" content="width=extend-to-zoom, initial-scale=1.0, user-scalable=yes" />
 		<?php
 			if($bin->styleSheet())
 				echo "<link rel=\"stylesheet\" type=\"text/css\" href=\"" . $CONFIG['pb_style'] . "\" media=\"screen, print\" />";
