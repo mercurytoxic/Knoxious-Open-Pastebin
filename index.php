@@ -469,7 +469,7 @@ class db
 		if(!$rename)
 			$filename = $file['name'];
 		else
-			$filename = $rename . "." . strtolower($info['extension']);
+			$filename = $rename . "." . strtolower($info['extension'] ?? '');
 
 		return $filename;
 	}
@@ -478,7 +478,7 @@ class db
 	{
 		$info = pathinfo($img);
 
-		if(!in_array(strtolower($info['extension']),
+		if(!in_array(strtolower($info['extension'] ?? ''),
 			$this->config['pb_image_extensions']))
 			return false;
 
@@ -3297,7 +3297,11 @@ if($requri != "install" && @$_POST['submit'])
 			}
 			$uploadAttempt = TRUE;
 		}
-		
+
+                if(empty($postedURLInfo['extension'])) {
+                        $postedURLInfo['extension'] = '';
+                }
+
 		if(in_array(strtolower($postedURLInfo['extension']), $CONFIG['pb_image_extensions']) && $CONFIG['pb_images'] && $CONFIG['pb_download_images'] && !$imageUpload) {
 			$imageUpload = $db->downTheImg($postedURL, $imageID);
 			if($imageUpload != FALSE) {
@@ -3309,7 +3313,7 @@ if($requri != "install" && @$_POST['submit'])
 
 		if(!$imageUpload && !$uploadAttempt)
 			$imageUpload = TRUE;
-		
+
 		if(@$_POST['pasteEnter'] == NULL && strlen(@$_FILES['pasteImage']['name']) > 4 && $CONFIG['pb_images'] && $imageUpload)
 			$_POST['pasteEnter'] = "Image file (" . $_FILES['pasteImage']['name'] . ") uploaded...";
 
@@ -3332,7 +3336,7 @@ if($requri != "install" && @$_POST['submit'])
 					$geshiStyle = NULL;
 				}
 
-		
+
 		$paste = array(
 			'ID' => $pasteID,
 			'Author' => $bin->checkAuthor(@$_POST['author']),
