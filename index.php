@@ -2259,7 +2259,11 @@ if($requri == "api")
 
 			$uploadAttempt = TRUE;
 		}
-		
+
+                if(empty($postedURLInfo['extension'])) {
+                        $postedURLInfo['extension'] = '';
+                }
+
 		if(in_array(strtolower($postedURLInfo['extension']), 
 			$CONFIG['pb_image_extensions']) && $CONFIG['pb_images'] 
 			&& $CONFIG['pb_download_images'] && !$imageUpload) 
@@ -3577,6 +3581,9 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 
 						$selecter = '/value="' . $pasted['Syntax'] . '"/';
 						$replacer = 'value="' . $pasted['Syntax'] . '" selected="selected"';
+                                                if(empty($highlighterContainer)) {
+                                                        $highlighterContainer = '';
+                                                }
 						$highlighterContainer = preg_replace($selecter, $replacer, $highlighterContainer, 1);
 
 						if($bin->highlight())
@@ -3590,6 +3597,9 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 									{
 										$key = array_keys($CONFIG['pb_lifespan'], $span);
 										$key = $key[0];
+                                                                                if(empty($options)) {
+                                                                                       $options = 0;
+                                                                                }
 										$options .= "<option value=\"" . $key . "\">" . $bin->event(time() - ($span * 24 * 60 * 60), TRUE) . "</option>";
 									}
 
