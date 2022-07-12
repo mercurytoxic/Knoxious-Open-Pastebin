@@ -1086,7 +1086,7 @@ class bin
 
 		$output = "";
 		for ($p = 0; $p < $length; $p++) 
-			$output .= $characters[mt_rand(0, strlen($characters))];
+			$output .= $characters[mt_rand(0, strlen($characters) - 1)];
 					
 		if(is_bool($output) || $output == NULL || strlen($output) < $length 
 			|| in_array($output, $checkArray))
