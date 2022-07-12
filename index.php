@@ -3525,7 +3525,7 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 				if(!is_bool($pasted['Image']) && !is_numeric($pasted['Image']))
 					echo "<div id=\"imageContainer\"><a href=\"" . $bin->linker() . $db->setDataPath($pasted['Image']) . "\" rel=\"external\"><img src=\"" . $bin->linker() . $db->setDataPath($pasted['Image']) . "\" alt=\"" . $pasted['ImageTxt'] . "\" class=\"pastedImage\" /></a></div>";
 
-				if(strlen($pasted['Parent']) > 0)
+                               if(strlen($pasted['Parent'] ?? '') > 0)
 					echo "<div class=\"warn\"><strong>This is an edit of</strong> <a href=\"" . $bin->linker($pasted['Parent']) . "\">" . $bin->linker($pasted['Parent']) . "</a></div>";
 
 				echo "<div id=\"styleBar\"><strong>Tools</strong> <a href=\"" . $bin->linker($pasted['ID'] . '@raw') . "\">Raw</a> &nbsp; <a href=\"" . $bin->linker($pasted['ID'] . '@download') . "\">Download</a></div>";
