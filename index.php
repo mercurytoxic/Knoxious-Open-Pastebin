@@ -66,11 +66,12 @@ elseif($CONFIG['pb_infinity'] && !$CONFIG['pb_infinity_default'])
 		(array)$infinity);
 
 
-if(get_magic_quotes_gpc())
+// get_magic_quotes_gpc() Removed in PHP 8.0, deprecated since 7.4
+if(version_compare(PHP_VERSION, '8.0.0', '<') === true && function_exists(get_magic_quotes_gpc()) === true)
 {
 	function callback_stripslashes(&$val, $name) 
 	{
-		if(get_magic_quotes_gpc()) 
+		if(get_magic_quotes_gpc() === true) 
  			$val = stripslashes($val);
 	}
 
