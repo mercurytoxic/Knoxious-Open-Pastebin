@@ -2317,10 +2317,10 @@ if($requri == "api")
 			$imageUpload = TRUE;
 
 
-		if(@$_POST['pasteEnter'] == NULL 
-			&& strlen(@$_FILES['pasteImage']['name']) > 4 
+		if(@$_POST['pasteEnter'] == NULL
+			&& strlen(@$_FILES['pasteImage']['name'] ?? '') > 4
 			&& $CONFIG['pb_images'])
-			$_POST['pasteEnter'] = "Image file (" 
+			$_POST['pasteEnter'] = "Image file ("
 				. $_FILES['pasteImage']['name'] . ") uploaded...";
 
 		if(!$CONFIG['pb_url'])
@@ -2398,16 +2398,16 @@ if($requri == "api")
 			$result = array('ID' => '"' . $paste['ID'] . '"', 'error' => '0', 
 				'message' => "Success!");
 		else {
-			if(strlen(@$_FILES['pasteImage']['name']) > 4 
+			if(strlen(@$_FILES['pasteImage']['name'] ?? '') > 4 
 				&& $_SERVER['CONTENT_LENGTH'] > $CONFIG['pb_image_maxsize'] 
 				&& $CONFIG['pb_images'])
 				$result = array('ID' => 0, 'error' => '"E02b"', 
 					'message' => "File is too big.");
-			elseif(strlen(@$_FILES['pasteImage']['name']) > 4 
+			elseif(strlen(@$_FILES['pasteImage']['name'] ?? '') > 4 
 				&& $CONFIG['pb_images'])
 				$result = array('ID' => 0, 'error' => '"E02a"', 
 					'message' => "Invalid file format.");
-			elseif(strlen(@$_FILES['pasteImage']['name']) > 4 
+			elseif(strlen(@$_FILES['pasteImage']['name'] ?? '') > 4 
 				&& !$CONFIG['pb_images'])
 				$result = array('ID' => 0, 'error' => '"E02d"', 
 					'message' => "Image hosting disabled.");
