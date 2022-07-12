@@ -3374,6 +3374,10 @@ if($requri != "install" && @$_POST['submit'])
 		}
 	}
 
+if(empty($requri)) {
+        $requri = '';
+}
+
 if($requri != "install" && $CONFIG['pb_recent_posts'] && substr($requri, -1) != "!")
 	{
 		echo "<div id=\"recentPosts\" class=\"recentPosts\">";
