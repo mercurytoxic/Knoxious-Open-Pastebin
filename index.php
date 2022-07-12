@@ -1529,6 +1529,12 @@ class bin
 		if(strlen($reqURI) < 1)
 			return false;
 
+                if(empty($pasteData)) {
+                $pasteData = '';
+                }
+
+                if(!is_array($pasteData)) $pasteData = [];
+
 		$pasteData = $this->db->readPaste($reqURI);
 
 		if($this->db->dbt == "mysql")
