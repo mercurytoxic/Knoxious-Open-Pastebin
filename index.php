@@ -449,12 +449,12 @@ class db
 			return false;
 
 		if($rename)
-			$path = $this->setDataPath($rename . "." 
-				. strtolower($info['extension'])); 
+			$path = $this->setDataPath($rename . "."
+				. strtolower($info['extension'] ?? ''));
 		else
 			$path = $path = $this->setDataPath($file['name']);
 
-		if(!in_array(strtolower($info['extension']), 
+		if(!in_array(strtolower($info['extension'] ?? ''),
 			$this->config['pb_image_extensions']))
 			return false;
 
@@ -463,7 +463,7 @@ class db
 
 		if(!move_uploaded_file($file['tmp_name'], $path))
 			return false;
-				
+
 		chmod($path, $this->config['txt_config']['dir_mode']);
 
 		if(!$rename)
@@ -478,29 +478,29 @@ class db
 	{
 		$info = pathinfo($img);
 
-		if(!in_array(strtolower($info['extension']), 
+		if(!in_array(strtolower($info['extension']),
 			$this->config['pb_image_extensions']))
 			return false;
 
 		if(!$this->config['pb_images'] || !$this->config['pb_download_images'])
 			return false;
 
-		if(substr($img, 0, 4) == 'http') 
+		if(substr($img, 0, 4) == 'http')
 		{
 			$x = array_change_key_case(get_headers($img, 1), CASE_LOWER);
 
-			if(strcasecmp($x[0], 'HTTP/1.1 200 OK') != 0) 
-				$x = $x['content-length'][1]; 
-			else 
-				$x = $x['content-length']; 
-		} else 
+			if(strcasecmp($x[0], 'HTTP/1.1 200 OK') != 0)
+				$x = $x['content-length'][1];
+			else
+				$x = $x['content-length'];
+		} else
 			$x = @filesize($img);
-		
-		$size = $x;
-		
+
+               	$size = $x;
+
 		if($size > $this->config['pb_image_maxsize'])
 			return false;
-			
+
 		$data = file_get_contents($img);
 
 		$path = $this->setDataPath($rename . "." 
