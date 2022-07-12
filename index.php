@@ -1543,6 +1543,8 @@ class bin
                 if(strstr($pasteData['URL'] ?? '', $this->linker()))
 			$pasteData['URL'] = $pasteData['URL'] . "!";
 
+                if(!is_array($pasteData)) $pasteData = [];
+
 		if($pasteData['Lifespan'] ?? 0 == 0)
 			$pasteData['Lifespan'] = time() + time();
 
