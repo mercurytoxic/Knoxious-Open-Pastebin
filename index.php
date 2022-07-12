@@ -27,7 +27,7 @@ if(!file_exists("config.php"))
 
 require("config.php");
 
-if(strtolower(@$_SERVER['HTTPS']) == "on")
+if((@$_SERVER['HTTPS']) == "on")
 	$CONFIG['pb_protocol'] = "https";
 else
 	$CONFIG['pb_protocol'] = "http";
@@ -181,6 +181,10 @@ class db
 			$this->config['max_folder_depth'] = 1;
 
 		$info = pathinfo($filename);
+
+                if(empty($info['extension'])) {
+                        $info['extension'] = 0;
+                }
 
 		if(!in_array(strtolower($info['extension']), 
 			$this->config['pb_image_extensions']))
