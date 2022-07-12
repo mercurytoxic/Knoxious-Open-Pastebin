@@ -749,6 +749,10 @@ class bin
 			}
 		}
 
+                if(empty($robot)) {
+                        $robot = '';
+                }
+
 		return $robot;
 	}
 
