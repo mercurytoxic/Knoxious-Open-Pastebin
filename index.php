@@ -1673,9 +1673,9 @@ if(@$_POST['author'] && is_numeric($CONFIG['pb_author_cookie']))
 	setcookie($ckey, $bin->checkAuthor(@$_POST['author']), 
 		time() + $CONFIG['pb_author_cookie']);
 
-$CONFIG['_temp_pb_author'] = $_COOKIE[$ckey];
+$CONFIG['_temp_pb_author'] = $_COOKIE[$ckey] ?? null;
 
-switch($_COOKIE[$ckey])
+switch($_COOKIE[$ckey] ?? null)
 {
 	case NULL:
 		$CONFIG['_temp_pb_author'] = $CONFIG['pb_author'];
