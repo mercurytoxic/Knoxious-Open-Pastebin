@@ -409,6 +409,9 @@ class db
 		
 	public function cleanHTML($input)
 	{
+                if(empty($input)) {
+                $input = '';
+                }
 		if($this->dbt == "mysql")
 			$output = addslashes(str_replace('\\', '\\\\', $input));
 		else
