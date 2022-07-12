@@ -538,7 +538,7 @@ class db
 
 		$paste = array('ID'	=> $id,
 			'Subdomain' => $data['Subdomain'],
-			'Datetime' => time() + $data['Time_offset'],
+			'Datetime' => time() + ($data['Time_offset'] ?? 0),
 			'Author' => $data['Author'],
 			'Protection' => $data['Protect'],
 			'Encrypted' => $data['Encrypted'],
@@ -751,14 +751,14 @@ class bin
 
 		return $robot;
 	}
-		
+
 	public function thisDir()
 	{
 		$output = dirname($_SERVER['SCRIPT_FILENAME']);
 
 		return $output;
 	}
-		
+
 	public function generateID($id = FALSE, $iterations = 0)
 	{
 		$checkArray = array('install', 'api', 'defaults', 'recent', 'raw', 
