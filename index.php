@@ -1527,7 +1527,7 @@ class bin
 		if($this->db->dbt == "mysql")
 			$pasteData = $pasteData[0];
 
-		if(strstr($pasteData['URL'], $this->linker()))
+                if(strstr($pasteData['URL'] ?? '', $this->linker()))
 			$pasteData['URL'] = $pasteData['URL'] . "!";
 
 		if($pasteData['Lifespan'] == 0)
