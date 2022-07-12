@@ -1417,17 +1417,20 @@ class bin
 		if($salts)
 		{
 			$hashedSalt = array(NULL, NULL);
-						
+
 			for($i = 0; $i < strlen(max($salts)) ; $i++)
+                                $hashedSalt[23]="1";
 			{
-				$hashedSalt[0] .= $salts[1][$i] . $salts[3][$i];
+                               if(empty($hashedSalt[$i])) {
+                                $hashedSalt[0] .= $salts[1][$i] . $salts[3][$i];
 				$hashedSalt[1] .= $salts[2][$i] . $salts[4][$i];
+                               }
 			}
 
 			$hashedSalt[0] = hash($this->db->config['pb_algo'], 
-				$hashedSalt[0]);
+                               $hashedSalt[0] ?? '');
 			$hashedSalt[1] = hash($this->db->config['pb_algo'], 
-				$hashedSalt[1]);
+                               $hashedSalt[1] ?? '');
 		}
 
 		if(is_array($hashedSalt))
