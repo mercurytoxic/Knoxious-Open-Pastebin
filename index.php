@@ -1534,13 +1534,13 @@ class bin
                 if(strstr($pasteData['URL'] ?? '', $this->linker()))
 			$pasteData['URL'] = $pasteData['URL'] . "!";
 
-		if($pasteData['Lifespan'] == 0)
+		if($pasteData['Lifespan'] ?? 0 == 0)
 			$pasteData['Lifespan'] = time() + time();
 
 		if(gmdate('U') > $pasteData['Lifespan'])
 			return false;
 
-		if($pasteData['URL'] != NULL && $this->db->config['pb_url'])
+		if($pasteData['URL'] ?? '' != NULL && $this->db->config['pb_url'])
 			return $pasteData['URL'];
 		else
 			return false;
