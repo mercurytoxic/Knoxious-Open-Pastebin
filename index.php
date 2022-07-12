@@ -3901,6 +3901,9 @@ if($requri && $requri != "install" && substr($requri, -1) != "!")
 									{
 										$key = array_keys($CONFIG['pb_lifespan'], $span);
 										$key = $key[0];
+                                                                                if(empty($options)) {
+                                                                                       $options = 0;
+                                                                                }
 										$options .= "<option value=\"" . $key . "\">" . $bin->event(time() - ($span * 24 * 60 * 60), TRUE) . "</option>";
 									}
 
