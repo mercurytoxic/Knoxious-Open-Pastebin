@@ -663,7 +663,7 @@ class db
 				$index = $this->deserializer($this->read($this->setDataPath() 
 					. "/" . $this->config['txt_config']['db_index']));
 				$index = array_reverse($index);
-				$output = strlen(str_replace("!", NULL, $index[0]));
+				$output = strlen(str_replace("!",'', $index[0]));
 
 				if($output < 1)
 					$output = $this->config['pb_id_length'];
