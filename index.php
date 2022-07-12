@@ -2233,7 +2233,7 @@ if($requri == "api")
 		if(@$_POST['urlField'])
 			$postedURL = htmlspecialchars($_POST['urlField']);
 		elseif(preg_match('/^((ht|f)(tp|tps)|mailto|irc|skype|'
-			. 'git|svn|cvs|aim|gtalk|feed):/', @$_POST['pasteEnter']) 
+			. 'git|svn|cvs|aim|gtalk|feed):/', @$_POST['pasteEnter'] ?? '') 
 			&& count(explode("\n", $_POST['pasteEnter'])) < 2)
 			$postedURL = htmlspecialchars($_POST['pasteEnter']);
 		else
@@ -2247,7 +2247,7 @@ if($requri == "api")
 
 		$exclam = NULL;
 
-		if(!$_POST['lifespan'])
+		if(!($_POST['lifespan'] ?? 0))
 			$_POST['lifespan'] = 0;
 
 		if($postedURL != NULL)
@@ -2329,10 +2329,10 @@ if($requri == "api")
 		if(!$CONFIG['pb_url'])
 			$postedURL = NULL;
 
-		if($bin->highlight() && $_POST['highlighter'] != "plaintext" 
-			&& $_POST['highlighter'] != NULL)
+		if($bin->highlight() && ($_POST['highlighter'] ?? 0) != "plaintext" 
+			&& ($_POST['highlighter'] ?? 0) != NULL)
 		{
-			$geshi->set_language($_POST['highlighter']);
+			$geshi->set_language($_POST['highlighter'] ?? 0);
 			$geshi->set_source($bin->noHighlight(@$_POST['pasteEnter']));
 			$geshi->highlight_lines_extra($bin->highlightNumbers(
 				@$_POST['pasteEnter']));
@@ -2353,9 +2353,9 @@ if($requri == "api")
 				. @$_FILES['pasteImage']['name'] . ") uploaded...",
 			'URL' => $postedURL,
 			'Lifespan' => $_POST['lifespan'],
-			'Protect' => $_POST['privacy'],
+			'Protect' => ($_POST['privacy'] ?? 0),
 			'Encrypted' => $encryption,
-			'Syntax' => $_POST['highlighter'],
+			'Syntax' => ($_POST['highlighter'] ?? 0),
 			'Parent' => $requri,
 			'Content' => @$_POST['pasteEnter'],
 			'GeSHI' => $geshiCode,
@@ -2377,7 +2377,7 @@ if($requri == "api")
 		}
 		
 		if(@$_POST['pasteEnter'] == @$_POST['originalPaste'] 
-			&& strlen($_POST['pasteEnter']) > 10)
+			&& strlen($_POST['pasteEnter'] ?? '') > 10)
 		{
 			$result = array('ID' => 0, 'error' => '"E01c"', 
 				'message' => 
@@ -2392,7 +2392,7 @@ if($requri == "api")
 			die(' }');
 		}
 
-		if(strlen(@$_POST['pasteEnter']) > 10 && $imageUpload 
+		if(strlen(@$_POST['pasteEnter'] ?? '') > 10 && $imageUpload 
 			&& mb_strlen($paste['Content']) <= $CONFIG['pb_max_bytes'] 
 			&& $db->insertPaste($paste['ID'], $paste))
 			$result = array('ID' => '"' . $paste['ID'] . '"', 'error' => '0', 
