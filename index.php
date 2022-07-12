@@ -2250,7 +2250,7 @@ if($requri == "api")
 		$imageUpload = FALSE;
 		$uploadAttempt = FALSE;
 
-		if(strlen(@$_FILES['pasteImage']['name']) > 4 && $CONFIG['pb_images'])
+		if(strlen((@$_FILES['pasteImage']['name'] ?? '')) > 4 && $CONFIG['pb_images'])
 	  	{
 			$imageUpload = $db->uploadFile($_FILES['pasteImage'], $imageID);
 
