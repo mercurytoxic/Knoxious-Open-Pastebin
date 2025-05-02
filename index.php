@@ -89,6 +89,8 @@ if(version_compare(PHP_VERSION, '8.0.0', '<') === true && function_exists(get_ma
 
 class db
 {
+ public $config;
+ public $dbt;
 	public function __construct($config)
 	{
 		$this->config = $config;
@@ -681,6 +683,7 @@ class db
 
 class bin
 {
+ public $db;
 	public function __construct($db)
 	{
 		$this->db = $db;
